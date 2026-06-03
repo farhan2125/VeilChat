@@ -1,0 +1,6 @@
+server/server_users.json
+server/server_offline.json
+server/server_groups.json
+server/server_profiles.json
+server/media_uploads/
+server/__pycache__/
