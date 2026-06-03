@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'veil_theme.dart';
 import 'services/network_service.dart';
 import 'services/webrtc_service.dart';
@@ -66,8 +67,29 @@ class _CallScreenState extends State<CallScreen>
     _initCall();
   }
 
+  Future<bool> _ensureCallPermissions() async {
+    final statuses = await [
+      Permission.microphone,
+      if (!widget.isAudioOnly) Permission.camera,
+    ].request();
+    return statuses.values.every((s) => s.isGranted);
+  }
+
   Future<void> _initCall() async {
     try {
+      final granted = await _ensureCallPermissions();
+      if (!granted) {
+        if (mounted && !_isDisposed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(widget.isAudioOnly
+                ? 'Microphone permission is required for calls'
+                : 'Camera and microphone permissions are required for video calls')),
+          );
+          Navigator.pop(context);
+        }
+        return;
+      }
+
       await _localRenderer.initialize();
       await _remoteRenderer.initialize();
 

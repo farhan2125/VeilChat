@@ -53,6 +53,7 @@ class DatabaseService {
       'ALTER TABLE messages ADD COLUMN reaction TEXT',
       'ALTER TABLE messages ADD COLUMN extra TEXT',
       'ALTER TABLE messages ADD COLUMN metadata TEXT',
+      'ALTER TABLE group_messages ADD COLUMN metadata TEXT',
       'ALTER TABLE messages ADD COLUMN status TEXT DEFAULT "sent"',
       'ALTER TABLE messages ADD COLUMN read INTEGER DEFAULT 0',
       'ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0',
@@ -1019,6 +1020,7 @@ class DatabaseService {
     int? timestamp,
     int isHidden = 0,
     String? hiddenKey,
+    Map<String, dynamic>? metadata,
   }) async {
     final db = await database;
 
@@ -1055,6 +1057,7 @@ class DatabaseService {
         'messageId': messageId,
         'isHidden': isHidden,
         'hiddenKey': hiddenKey,
+        'metadata': metadata != null ? jsonEncode(metadata) : null,
       });
       await updateGroup(
         accountOwner: accountOwner,
@@ -1076,7 +1079,7 @@ class DatabaseService {
     int offset = 0,
   }) async {
     final db = await database;
-    return await db.query(
+    final rows = await db.query(
       'group_messages',
       where: 'groupId = ? AND accountOwner = ?',
       whereArgs: [groupId, accountOwner],
@@ -1084,6 +1087,13 @@ class DatabaseService {
       limit: limit,
       offset: offset,
     );
+    return rows.map((m) {
+      final mm = Map<String, dynamic>.from(m);
+      if (mm['metadata'] != null && mm['metadata'] is String) {
+        mm['metadata'] = _jsonToMap(mm['metadata'] as String);
+      }
+      return mm;
+    }).toList();
   }
 
   Future<void> markGroupMessageDelivered(String messageId) async {

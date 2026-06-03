@@ -220,17 +220,20 @@ def handle_client(conn, addr):
 
                 elif t=='GRP_REMOVE_MEMBER':
                     if not user: continue
-                    g=get_group(d.get('groupId',''))
+                    gid=d.get('groupId','')
+                    gs=load_json(GROUPS_FILE)
+                    g=gs.get(gid)
                     if g and user==g.get('owner',''):
                         member=d.get('member','')
                         if member and member in g['members']:
                             g['members'].remove(member)
-                            save_json(GROUPS_FILE,groups_data)
-                            # Notify all members
-                            for m in g['members']:
+                            gs[gid]=g
+                            save_json(GROUPS_FILE,gs)
+                            # Notify all members (and the removed member)
+                            for m in g['members']+[member]:
                                 with lock: s2=online_users.get(m)
                                 if s2: send_packet(s2,'GRP_REMOVE_MEMBER',
-                                    {'groupId':d.get('groupId'),'member':member})
+                                    {'groupId':gid,'member':member})
 
                 elif t=='GRP_ADD_MEMBER':
                     if not user: continue

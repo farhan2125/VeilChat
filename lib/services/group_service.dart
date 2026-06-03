@@ -420,6 +420,7 @@ class GroupService {
       timestamp: timestamp,
       isHidden: metadata?['isHidden'] ?? 0,
       hiddenKey: metadata?['hiddenKey'],
+      metadata: metadata,
     );
 
     await DatabaseService().updateGroup(
@@ -498,6 +499,9 @@ class GroupService {
           timestamp: timestamp,
           isHidden: data['isHidden'] ?? 0,
           hiddenKey: data['hiddenKey'],
+          metadata: data['metadata'] is Map
+              ? Map<String, dynamic>.from(data['metadata'])
+              : null,
         );
         await DatabaseService().updateGroup(
           accountOwner: currentUser,
@@ -518,6 +522,9 @@ class GroupService {
           timestamp: timestamp,
           isHidden: data['isHidden'] ?? 0,
           hiddenKey: data['hiddenKey'],
+          metadata: data['metadata'] is Map
+              ? Map<String, dynamic>.from(data['metadata'])
+              : null,
         );
       }
     }

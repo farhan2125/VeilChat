@@ -215,6 +215,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         'delivered': m['delivered'] == 1,
         'isHidden': m['isHidden'] ?? 0,
         'hiddenKey': m['hiddenKey'],
+        'metadata': m['metadata'],
         'originalPath': m['content'],
       };
     }).toList();

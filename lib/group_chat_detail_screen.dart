@@ -244,8 +244,22 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       final subDir = Directory('${dir.path}/veil_chat_files');
       if (!await subDir.exists()) await subDir.create(recursive: true);
 
-      String ext = type == 'IMAGE' ? '.jpg' : type == 'AUDIO' ? '.m4a' : '.dat';
-      final savePath = '${subDir.path}/grp_recv_${msg['messageId'] ?? msgId}$ext';
+      // Restore original filename/extension from metadata when available.
+      final metaRaw = msg['metadata'];
+      final metaMap = <String, dynamic>{};
+      if (metaRaw is Map) {
+        metaRaw.forEach((k, v) => metaMap[k.toString()] = v);
+      }
+      final origFilename = metaMap['filename']?.toString() ?? '';
+      String saveBase;
+      if (origFilename.isNotEmpty) {
+        final safeName = origFilename.replaceAll(RegExp(r'[^\w._-]'), '_');
+        saveBase = 'grp_recv_${msg['messageId'] ?? msgId}_$safeName';
+      } else {
+        final ext = type == 'IMAGE' ? '.jpg' : type == 'AUDIO' ? '.m4a' : '.dat';
+        saveBase = 'grp_recv_${msg['messageId'] ?? msgId}$ext';
+      }
+      final savePath = '${subDir.path}/$saveBase';
 
       if (await File(savePath).exists()) {
         debugPrint('📥 File already exists: $savePath');
@@ -488,6 +502,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       timestamp: timestamp,
       isHidden: isHidden,
       hiddenKey: hiddenKey,
+      metadata: metadata,
     );
 
     if (mounted) {
@@ -506,6 +521,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           'messageId': messageId,
           'isHidden': isHidden,
           'hiddenKey': hiddenKey,
+          'metadata': metadata,
         });
         if (type != 'TEXT') {
           _decryptedMediaPaths[newMsgId] = payloadForDB;
