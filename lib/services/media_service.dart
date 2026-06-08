@@ -45,13 +45,13 @@ class MediaService {
           debugPrint("✅ Download complete: ${bytes.length} bytes");
           return file;
         } else {
-          debugPrint("❌ Download failed with status \${streamedResponse.statusCode}");
+          debugPrint("❌ Download failed with status ${streamedResponse.statusCode}");
         }
       } finally {
         client.close();
       }
     } catch (e) {
-      debugPrint("❌ Media Download Error: \$e");
+      debugPrint("❌ Media Download Error: $e");
     }
     return null;
   }

@@ -46,6 +46,7 @@ class _CallScreenState extends State<CallScreen>
   bool _isCameraOff   = false;
   bool _isDisposed    = false;
   bool _callEnding    = false;
+  bool _offerSent     = false; // ✅ guard against double createOffer
   // ✅ FIX: incoming call must not show "Connected" until user presses Accept
   bool _userAccepted  = false;
 
@@ -183,7 +184,10 @@ class _CallScreenState extends State<CallScreen>
         }
       } else {
         setState(() => _callStatus = 'Calling ${widget.contactName}...');
-        await _webrtc.createOffer(widget.contactName);
+        if (!_offerSent) {
+          _offerSent = true;
+          await _webrtc.createOffer(widget.contactName);
+        }
       }
     } catch (e) {
       debugPrint('❌ _initCall error: $e');

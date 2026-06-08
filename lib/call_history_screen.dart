@@ -298,30 +298,36 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
                             ),
                           ],
                         ),
-                        trailing: Column(
+                        trailing: SizedBox(
+                          width: 52,
+                          child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             if (call['status'] == 'completed')
                               Text(
                                 _formatDuration(duration),
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 10,
                                   color: widget.isDark
                                       ? Colors.white54
                                       : Colors.black54,
                                 ),
                               ),
-                            const SizedBox(height: 8),
-                            IconButton(
-                              icon: Icon(
-                                isAudio ? Icons.call : Icons.videocam,
-                                size: 20,
-                                color: themeColor,
+                            GestureDetector(
+                              onTap: () => _placeCall(contact, isAudio),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Icon(
+                                  isAudio ? Icons.call : Icons.videocam,
+                                  size: 20,
+                                  color: themeColor,
+                                ),
                               ),
-                              onPressed: () => _placeCall(contact, isAudio),
                             ),
                           ],
+                          ),
                         ),
                       ),
                     );

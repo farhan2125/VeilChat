@@ -1,0 +1,72 @@
+{
+  "grp_1773802396233_asma": {
+    "id": "grp_1773802396233_asma",
+    "name": "Test",
+    "owner": "asma",
+    "members": [
+      "asma"
+    ],
+    "created_at": 1773802396234
+  },
+  "grp_1773803774064_asma": {
+    "id": "grp_1773803774064_asma",
+    "name": "Test1",
+    "owner": "asma",
+    "members": [
+      "haiz",
+      "asma"
+    ],
+    "created_at": 1773803774064
+  },
+  "grp_1776737083068_haiz": {
+    "id": "grp_1776737083068_haiz",
+    "name": "Jaims",
+    "owner": "haiz",
+    "members": [
+      "asma",
+      "haiz"
+    ],
+    "created_at": 1776737083068
+  },
+  "grp_1777113373414_haiz": {
+    "id": "grp_1777113373414_haiz",
+    "name": "Haiz",
+    "owner": "haiz",
+    "members": [
+      "asma",
+      "haiz"
+    ],
+    "created_at": 1777113373414
+  },
+  "grp_1777225975053_haiz": {
+    "id": "grp_1777225975053_haiz",
+    "name": "Jazz",
+    "owner": "haiz",
+    "members": [
+      "asma",
+      "haiz"
+    ],
+    "created_at": 1777225975053
+  },
+  "grp_1777288854245_haiz": {
+    "id": "grp_1777288854245_haiz",
+    "name": "Haiz",
+    "owner": "haiz",
+    "members": [
+      "asma",
+      "haiz"
+    ],
+    "created_at": 1777288854245
+  },
+  "grp_1777902828837_asma": {
+    "id": "grp_1777902828837_asma",
+    "name": "gego",
+    "owner": "asma",
+    "members": [
+      "shanu",
+      "haiz",
+      "asma"
+    ],
+    "created_at": 1777902828838
+  }
+}

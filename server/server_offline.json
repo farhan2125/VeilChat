@@ -1,0 +1,198 @@
+{
+  "shanu": [
+    {
+      "groupId": "grp_1777902828837_asma",
+      "name": "gego",
+      "owner": "asma",
+      "members": [
+        "shanu",
+        "haiz",
+        "asma"
+      ],
+      "inviter": "asma",
+      "type": "GRP_INV",
+      "timestamp": 1777902828843
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "4a21654a1bce0aa5f623e318dfda88dc0abbc17360b59a4466aa1b9499a5a6868702933d91ac12adbd8205466f8dfd7cd9b476",
+      "extra": null,
+      "metadata": null,
+      "messageId": "1777902839371",
+      "sender": "asma",
+      "timestamp": 1777902839869,
+      "isHidden": 0,
+      "hiddenKey": null
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "5ce93624846e022d67083f4a6d8cdb870213791191d9b3a24e2f89476a276dc8aa93fda280b65a5872f83c5a8afddd0295522b3a3c38ea",
+      "extra": null,
+      "metadata": null,
+      "messageId": "1777902848864",
+      "sender": "asma",
+      "timestamp": 1777902849411,
+      "isHidden": 0,
+      "hiddenKey": null
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "0f6f640743110bd589490b38104d6e884721ec5bb24416695c00a749d3bb91704435440ae04b7f4a5b623e08cab6d7df8cbd",
+      "extra": null,
+      "metadata": null,
+      "messageId": "1780501912150",
+      "sender": "haiz",
+      "timestamp": 1780501903745,
+      "isHidden": 0,
+      "hiddenKey": null
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "1780501908593_a4dbf527.enc",
+      "extra": null,
+      "metadata": null,
+      "messageId": "1780501916877",
+      "sender": "haiz",
+      "timestamp": 1780501908621,
+      "isHidden": 0,
+      "hiddenKey": null
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "1780501920133_d88d090d.enc",
+      "extra": null,
+      "metadata": {
+        "filename": "stego_1777226065977.png.png",
+        "size": 30031,
+        "mimeType": "image/png"
+      },
+      "messageId": "1780501928194",
+      "sender": "haiz",
+      "timestamp": 1780501920179,
+      "isHidden": 0,
+      "hiddenKey": null
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "4c888c63d452b0d70bcc96e68cfc62254d769c239dd75d3e6bc46efed1e7a33237793127f4eea3f661b15950099795ccbfeaf804ad",
+      "extra": null,
+      "metadata": null,
+      "messageId": "1780730833723",
+      "sender": "asma",
+      "timestamp": 1780730834425,
+      "isHidden": 0,
+      "hiddenKey": null
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "1780730853217_c67beb35.enc",
+      "extra": null,
+      "metadata": null,
+      "messageId": "1780730852425",
+      "sender": "asma",
+      "timestamp": 1780730853265,
+      "isHidden": 0,
+      "hiddenKey": null
+    },
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "1780730950035_4023fea0.enc",
+      "extra": null,
+      "metadata": {
+        "filename": "stego_1777226065977.png.png",
+        "size": 30031,
+        "mimeType": "image/png"
+      },
+      "messageId": "1780730949050",
+      "sender": "haiz",
+      "timestamp": 1780730950087,
+      "isHidden": 0,
+      "hiddenKey": null
+    }
+  ],
+  "tyz": [
+    {
+      "to_user": "tyz",
+      "content": "1779346793594_b7313de9.enc",
+      "sender": "haiz",
+      "timestamp": 1779346793871,
+      "messageId": "1779346792776",
+      "isHidden": 1,
+      "hiddenKey": "hi",
+      "type": "IMAGE"
+    },
+    {
+      "to_user": "tyz",
+      "content": "3884619c61c924b0672c4642f42f6da12d00973d757e972a404397258f218c2c37ef4567067f1e784682023ae79a082e4f031a87f5e401e6d30145f52d857e421a9072622ffafeb2853da894fa401ce6792e078984bede1211e7eed0378cdbaaffd0b2528a54ca61977953ad09346de746ee38d37e65b9de71f54a2b600798406d5182904f79b2933138f245a7287ec7727aa3c7d91ecb99b9fbf2c3",
+      "sender": "haiz",
+      "timestamp": 1779346988109,
+      "messageId": "1779346988061",
+      "type": "TEXT"
+    },
+    {
+      "to_user": "tyz",
+      "content": "493616fa3254d2c3a7a299747bbaae16594f3230856f8e4553bff7189a6b7ce95d09398acd4a5ed98dc64ecbca1dfbd24d184b0a07d32d710936b4aaf0",
+      "sender": "haiz",
+      "timestamp": 1779347011757,
+      "messageId": "1779347011740",
+      "type": "TEXT"
+    }
+  ],
+  "amna": [
+    {
+      "to_user": "amna",
+      "content": "ca7bb274a78aa5d430ff154f1269327ef652644c5909a55ffd9ad354abf91fec556dd5041d6612ce9d351498b2876cf78cc70028f2",
+      "sender": "haiz",
+      "timestamp": 1780501835983,
+      "messageId": "1780501844323",
+      "type": "TEXT"
+    },
+    {
+      "to_user": "amna",
+      "content": "1c979fcda7c0baa4dc7fd05a01712afe7e2e73342d85866a82adee1e709aa192979944b19e4daed4af31e07e54d584bbd014cafbf1eb7eee92b31e",
+      "sender": "haiz",
+      "timestamp": 1780501841526,
+      "messageId": "1780501849900",
+      "type": "TEXT"
+    },
+    {
+      "to_user": "amna",
+      "content": "1780501849743_b992302e.enc",
+      "sender": "haiz",
+      "timestamp": 1780501849808,
+      "metadata": {
+        "filename": "stego_1776737397601.png.png",
+        "size": 30011,
+        "mimeType": "image/png"
+      },
+      "messageId": "1780501857770",
+      "type": "FILE"
+    }
+  ],
+  "asma": [
+    {
+      "groupId": "grp_1777902828837_asma",
+      "type": "GRP_MSG",
+      "content": "1780730950035_4023fea0.enc",
+      "extra": null,
+      "metadata": {
+        "filename": "stego_1777226065977.png.png",
+        "size": 30031,
+        "mimeType": "image/png"
+      },
+      "messageId": "1780730949050",
+      "sender": "haiz",
+      "timestamp": 1780730950120,
+      "isHidden": 0,
+      "hiddenKey": null
+    }
+  ]
+}

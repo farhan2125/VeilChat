@@ -79,6 +79,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   final Map<String, Duration> _audioPositions = {};
 
   StreamSubscription? _messageSub;
+  StreamSubscription? _userListSub;
   Timer? _onlineRefreshTimer;
   StreamSubscription? _recordingTimeSub;
 
@@ -134,6 +135,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         _network.sendPacket('GET_USER_LIST', {});
       }
     });
+
+    // ✅ FIX: Subscribe to userListStream (USER_LIST goes there, NOT messageStream)
+    _userListSub = _network.userListStream.listen((data) {
+      if (!mounted) return;
+      final rawUsers = data['users'] as Map? ?? {};
+      final contactData = rawUsers[widget.contactName];
+      bool isOnline = false;
+      int lastSeen = 0;
+      if (contactData is Map) {
+        isOnline = contactData['status'] == 'Online';
+        lastSeen = (contactData['lastSeen'] as num?)?.toInt() ?? 0;
+      } else if (contactData is String) {
+        isOnline = contactData == 'Online';
+      }
+      if (mounted) setState(() {
+        _isContactOnline = isOnline;
+        if (lastSeen > 0) _contactLastSeen = lastSeen;
+      });
+    });
     _focusNode.addListener(_onFocusChange);
     _msgController.addListener(_onTextChanged);
   }
@@ -151,6 +171,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     _typingDebounce?.cancel();
     _debounceTimer?.cancel();
     _messageSub?.cancel();
+    _userListSub?.cancel();
     _onlineRefreshTimer?.cancel();
     _recordingTimeSub?.cancel();
     _audioPlayer.dispose();
@@ -570,24 +591,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         return;
       }
 
-      // Online status update
-      if (type == 'USER_LIST' && data['users'] != null) {
-        final rawUsers = data['users'] as Map;
-        final contactData = rawUsers[widget.contactName];
-        bool isOnline = false;
-        int lastSeen = 0;
-        if (contactData is Map) {
-          isOnline = contactData['status'] == 'Online';
-          lastSeen = (contactData['lastSeen'] as num?)?.toInt() ?? 0;
-        } else if (contactData is String) {
-          isOnline = contactData == 'Online';
-        }
-        if (mounted) setState(() {
-          _isContactOnline = isOnline;
-          if (lastSeen > 0) _contactLastSeen = lastSeen;
-        });
-        return;
-      }
+      // USER_LIST is now handled by _userListSub (userListStream)
+      if (type == 'USER_LIST') return;
 
       if (sender == widget.contactName || data['contact'] == widget.contactName) {
         if (type == 'TYPING') {
