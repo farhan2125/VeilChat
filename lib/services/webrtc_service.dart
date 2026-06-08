@@ -183,6 +183,17 @@ class WebRTCService {
     if (tracks.isNotEmpty) Helper.switchCamera(tracks[0]);
   }
 
+  /// Route call audio to the loudspeaker (true) or the phone earpiece (false).
+  /// Using the earpiece for audio-only calls greatly reduces the
+  /// "I can hear my own voice" echo caused by the mic picking up the speaker.
+  Future<void> setSpeakerphone(bool enabled) async {
+    try {
+      await Helper.setSpeakerphoneOn(enabled);
+    } catch (e) {
+      debugPrint('❌ setSpeakerphone error: $e');
+    }
+  }
+
   void dispose() {
     if (_disposed) return;
     _disposed = true;
