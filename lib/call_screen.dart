@@ -44,6 +44,7 @@ class _CallScreenState extends State<CallScreen>
   String _callStatus  = 'Initializing...';
   bool _isMuted       = false;
   bool _isCameraOff   = false;
+  bool _isSpeakerOn   = false; // audio output: false = earpiece, true = loudspeaker
   bool _isDisposed    = false;
   bool _callEnding    = false;
   bool _offerSent     = false; // ✅ guard against double createOffer
@@ -165,6 +166,12 @@ class _CallScreenState extends State<CallScreen>
       _webrtc.sendIceCandidate = (candidate, _) => _onIceCandidate(candidate);
 
       await _webrtc.init(isAudioOnly: widget.isAudioOnly);
+
+      // Default audio routing: earpiece for voice calls (prevents the
+      // loudspeaker echo where you hear your own voice), speaker for video.
+      _isSpeakerOn = !widget.isAudioOnly;
+      await _webrtc.setSpeakerphone(_isSpeakerOn);
+      if (mounted) setState(() {});
 
       _setupSignalListener();
 
@@ -353,6 +360,13 @@ class _CallScreenState extends State<CallScreen>
     _webrtc.switchCamera();
   }
 
+  void _toggleSpeaker() async {
+    if (_isDisposed) return;
+    _isSpeakerOn = !_isSpeakerOn;
+    await _webrtc.setSpeakerphone(_isSpeakerOn);
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _disposeCall();
@@ -524,6 +538,10 @@ class _CallScreenState extends State<CallScreen>
           _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
           _isMuted ? Colors.redAccent : Colors.white,
           _toggleMute),
+        _circleBtn(
+          _isSpeakerOn ? Icons.volume_up_rounded : Icons.phone_in_talk_rounded,
+          _isSpeakerOn ? VeilTheme.accentColor : Colors.white,
+          _toggleSpeaker),
         _circleBtn(Icons.call_end_rounded, Colors.red,
           () => _handleEndCall()),
         if (!widget.isAudioOnly) ...[
