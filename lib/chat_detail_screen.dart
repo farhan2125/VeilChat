@@ -2138,6 +2138,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                     ),
                 ],
               ),
+              ),
             ],
           ),
         ),
