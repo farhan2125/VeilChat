@@ -336,10 +336,12 @@ class _CallScreenState extends State<CallScreen>
     // ✅ FIX: Set srcObject to null BEFORE dispose to prevent Surface.release NPE on Android 8
     try { _localRenderer.srcObject  = null; } catch (_) {}
     try { _remoteRenderer.srcObject = null; } catch (_) {}
-    // Delay dispose to let Flutter finish rendering cycle
-    Future.delayed(const Duration(milliseconds: 300), () {
-      try { _localRenderer.dispose(); } catch (_) {}
-      try { _remoteRenderer.dispose(); } catch (_) {}
+    // Delay dispose to let Flutter finish rendering cycle.
+    // dispose() is async and can reject (Surface.release NPE on some Android
+    // devices) — await + catch so it never becomes an unhandled exception.
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      try { await _localRenderer.dispose(); } catch (_) {}
+      try { await _remoteRenderer.dispose(); } catch (_) {}
     });
   }
 
