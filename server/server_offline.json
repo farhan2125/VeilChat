@@ -177,22 +177,154 @@
       "type": "FILE"
     }
   ],
+  "bushra": [
+    {
+      "to_user": "bushra",
+      "content": "73c3564410aca20764154e8d823fd071d6714cd1d965664e17c9fb841b5ed2f76999bd613b6400ca84fe28adef50f2712350e8cb",
+      "sender": "tooba",
+      "timestamp": 1780919153280,
+      "messageId": "1780919152718",
+      "type": "TEXT"
+    },
+    {
+      "groupId": "grp_1780919351623_tooba",
+      "name": "Secure 1",
+      "owner": "tooba",
+      "members": [
+        "asma",
+        "haiz",
+        "noor",
+        "bushra",
+        "tooba"
+      ],
+      "inviter": "tooba",
+      "type": "GRP_INV",
+      "timestamp": 1780919351687
+    },
+    {
+      "groupId": "grp_1780923562684_haiz",
+      "name": "Secured chat",
+      "owner": "haiz",
+      "members": [
+        "tooba",
+        "asma",
+        "bushra",
+        "sehar",
+        "haiz"
+      ],
+      "inviter": "haiz",
+      "type": "GRP_INV",
+      "timestamp": 1780923562715
+    }
+  ],
+  "noor": [
+    {
+      "groupId": "grp_1780919351623_tooba",
+      "name": "Secure 1",
+      "owner": "tooba",
+      "members": [
+        "asma",
+        "haiz",
+        "noor",
+        "bushra",
+        "tooba"
+      ],
+      "inviter": "tooba",
+      "type": "GRP_INV",
+      "timestamp": 1780919351672
+    }
+  ],
   "asma": [
     {
-      "groupId": "grp_1777902828837_asma",
-      "type": "GRP_MSG",
-      "content": "1780730950035_4023fea0.enc",
-      "extra": null,
-      "metadata": {
-        "filename": "stego_1777226065977.png.png",
-        "size": 30031,
-        "mimeType": "image/png"
-      },
-      "messageId": "1780730949050",
+      "to_user": "asma",
+      "content": "32b717f92927da2ba6788ee0c803121126d2aad9d0f2a6ee96c432175bd36900c6e9e3cbc2890a7127cfeec14ab9374c89d3dd",
       "sender": "haiz",
-      "timestamp": 1780730950120,
-      "isHidden": 0,
-      "hiddenKey": null
+      "timestamp": 1780923384931,
+      "messageId": "1780923383158",
+      "type": "TEXT"
+    },
+    {
+      "to_user": "asma",
+      "content": "1780923402246_4879fb7b.enc",
+      "sender": "haiz",
+      "timestamp": 1780923402314,
+      "messageId": "1780923399960",
+      "type": "IMAGE"
+    },
+    {
+      "to_user": "asma",
+      "content": "1780923415138_52a7dc54.enc",
+      "sender": "haiz",
+      "timestamp": 1780923415240,
+      "messageId": "1780923413130",
+      "type": "AUDIO"
+    },
+    {
+      "to_user": "asma",
+      "content": "8783436135f9649a333a1219835dfe99ee2396b0fb78c8ce5409e000cc5835dbb549a183543fa2054e8050e0e291557a4d2d3a51af91e027",
+      "sender": "haiz",
+      "timestamp": 1780923425776,
+      "messageId": "1780923424004",
+      "type": "TEXT"
+    },
+    {
+      "to_user": "asma",
+      "content": "1780923448930_f216d5e3.enc",
+      "sender": "haiz",
+      "timestamp": 1780923449002,
+      "messageId": "1780923446118",
+      "isHidden": 1,
+      "hiddenKey": "home",
+      "type": "IMAGE"
+    },
+    {
+      "groupId": "grp_1780923562684_haiz",
+      "name": "Secured chat",
+      "owner": "haiz",
+      "members": [
+        "tooba",
+        "asma",
+        "bushra",
+        "sehar",
+        "haiz"
+      ],
+      "inviter": "haiz",
+      "type": "GRP_INV",
+      "timestamp": 1780923562706
+    }
+  ],
+  "tooba": [
+    {
+      "groupId": "grp_1780923562684_haiz",
+      "name": "Secured chat",
+      "owner": "haiz",
+      "members": [
+        "tooba",
+        "asma",
+        "bushra",
+        "sehar",
+        "haiz"
+      ],
+      "inviter": "haiz",
+      "type": "GRP_INV",
+      "timestamp": 1780923562696
+    }
+  ],
+  "sehar": [
+    {
+      "groupId": "grp_1780923562684_haiz",
+      "name": "Secured chat",
+      "owner": "haiz",
+      "members": [
+        "tooba",
+        "asma",
+        "bushra",
+        "sehar",
+        "haiz"
+      ],
+      "inviter": "haiz",
+      "type": "GRP_INV",
+      "timestamp": 1780923562723
     }
   ]
 }
