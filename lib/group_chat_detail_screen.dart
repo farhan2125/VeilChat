@@ -771,6 +771,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
 
   void _showRecordingOverlay() {
     int _modalSeconds = 0;
+    StreamSubscription? modalSub;
     showModalBottomSheet(
       context: context,
       isDismissible: false,
@@ -778,7 +779,8 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setModal) {
-          _sound.recordingTimeStream.listen((s) {
+          // Subscribe only once (not on every rebuild) to avoid leaking subs.
+          modalSub ??= _sound.recordingTimeStream.listen((s) {
             _modalSeconds = s;
             if (ctx2.mounted) setModal(() {});
           });
@@ -810,6 +812,8 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                   children: [
                     _circleBtn(Icons.close, Colors.white, () async {
                       await _sound.cancelRecording();
+                      await modalSub?.cancel();
+                      modalSub = null;
                       Navigator.pop(ctx2);
                       if (mounted) setState(() {
                         _isRecordingVoice = false;
@@ -818,10 +822,16 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                     }),
                     _circleBtn(Icons.stop, Colors.red, () async {
                       final path = await _sound.stopRecording();
+                      await modalSub?.cancel();
+                      modalSub = null;
                       Navigator.pop(ctx2);
                       if (path != null) {
                         final audioBase64 = await _sound.convertFileToBase64(path);
-                        _sendSecureData(audioBase64, 'AUDIO', localFilePath: path);
+                        if (audioBase64.isNotEmpty) {
+                          _sendSecureData(audioBase64, 'AUDIO', localFilePath: path);
+                        } else {
+                          _showError('Voice recording failed');
+                        }
                       }
                       if (mounted) setState(() {
                         _isRecordingVoice = false;
