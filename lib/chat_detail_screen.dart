@@ -2090,11 +2090,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
+              Expanded(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     widget.contactName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
