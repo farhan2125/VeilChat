@@ -237,13 +237,19 @@ def handle_client(conn, addr):
 
                 elif t=='GRP_ADD_MEMBER':
                     if not user: continue
-                    gid=d.get('groupId'); nm=d.get('username'); gs=load_json(GROUPS_FILE)
+                    gid=d.get('groupId'); nm=d.get('member') or d.get('username'); gs=load_json(GROUPS_FILE)
                     if gid in gs and gs[gid]['owner']==user and nm and nm not in gs[gid]['members']:
                         gs[gid]['members'].append(nm); save_json(GROUPS_FILE,gs)
                         inv={'groupId':gid,'name':gs[gid]['name'],'owner':gs[gid]['owner'],'members':gs[gid]['members'],'inviter':user}
+                        # Invite the new member
                         with lock: s=online_users.get(nm)
                         if s: send_packet(s,'GRP_INV',inv)
                         else: queue_offline(nm,'GRP_INV',inv)
+                        # Notify all existing members so their member list updates
+                        for m in gs[gid]['members']:
+                            if m==nm: continue
+                            with lock: s2=online_users.get(m)
+                            if s2: send_packet(s2,'GRP_ADD_MEMBER',{'groupId':gid,'member':nm,'members':gs[gid]['members']})
 
                 elif t=='GRP_TYPING':
                     if not user: continue
