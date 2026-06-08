@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# VeilChat: do not track archives, helper scripts, or server media uploads
+lib.zip
+server.zip
+check_veilchat.py
+server/media_uploads/
