@@ -81,6 +81,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
   StreamSubscription? _groupMessageSub;
   StreamSubscription? _typingSub;
   StreamSubscription? _recordingTimeSub;
+  StreamSubscription? _groupUpdateSub;
 
   final Map<int, String> _decryptedMediaPaths = {};
   final Set<int> _downloadingMedia = {}; // 🔥 TRACK DOWNLOADS
@@ -131,6 +132,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     _groupMessageSub?.cancel();
     _typingSub?.cancel();
     _recordingTimeSub?.cancel();
+    _groupUpdateSub?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -405,6 +407,14 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     _recordingTimeSub = _sound.recordingTimeStream.listen((seconds) {
       if (mounted && _isRecordingVoice) {
         setState(() => _recordingTime = seconds);
+      }
+    });
+
+    // Live-refresh the member list when members are added/removed.
+    _groupUpdateSub = _groupService.groupUpdateStream.listen((group) {
+      if (!mounted) return;
+      if (group.id == widget.groupId) {
+        setState(() => _members = List<String>.from(group.members));
       }
     });
   }
@@ -728,7 +738,8 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           'mimeType': _fileTransfer.getMimeType(file.name),
         },
       );
-      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+      // NOTE: do NOT Navigator.pop here — it was kicking the user out of the
+      // group chat after sending a file.
     }
   }
 
