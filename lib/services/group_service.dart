@@ -144,9 +144,11 @@ class GroupService {
         _handleGroupInvite(packet);
         break;
       case 'GROUP_MEMBER_ADDED':
+      case 'GRP_ADD_MEMBER':
         _handleMemberAdded(packet);
         break;
       case 'GROUP_MEMBER_REMOVED':
+      case 'GRP_REMOVE_MEMBER':
         _handleMemberRemoved(packet);
         break;
       case 'GRP_MSG':
@@ -245,7 +247,8 @@ class GroupService {
 
   void _handleMemberAdded(Map<String, dynamic> data) {
     final groupId = data['groupId'];
-    final newMember = data['username'];
+    final newMember = data['member'] ?? data['username'];
+    if (newMember == null) return;
     try {
       final group = _groups.firstWhere((g) => g.id == groupId);
       if (!group.members.contains(newMember)) {
@@ -272,7 +275,8 @@ class GroupService {
 
   void _handleMemberRemoved(Map<String, dynamic> data) {
     final groupId = data['groupId'];
-    final removedMember = data['username'];
+    final removedMember = data['member'] ?? data['username'];
+    if (removedMember == null) return;
     final currentUser = NetworkService().currentUser;
     try {
       final group = _groups.firstWhere((g) => g.id == groupId);
