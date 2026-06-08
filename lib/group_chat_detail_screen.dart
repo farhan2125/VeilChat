@@ -176,7 +176,17 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       bool isMe = modifiableMsg['isMe'] == 1 || modifiableMsg['isMe'] == true;
       modifiableMsg['isMe'] = isMe; // FIX: normalize to bool so _buildBubble works
 
-      if ((currentType == 'TEXT' || currentType == 'GRP_MSG') && contentStr.isNotEmpty && !isMe) {
+      // An explicit media type must NEVER be treated as text — otherwise an
+      // AUDIO/IMAGE/FILE message whose content is a server .enc filename ends
+      // up shown as plain text (the raw filename) for several seconds.
+      final bool isExplicitMedia =
+          currentType == 'IMAGE' || currentType == 'AUDIO' || currentType == 'FILE';
+
+      if (!isExplicitMedia &&
+          (currentType == 'TEXT' || currentType == 'GRP_MSG') &&
+          contentStr.isNotEmpty &&
+          !isMe &&
+          !_isLikelyFilePath(contentStr)) {
         try {
           final bytes = _crypto.hexToBytes(contentStr);
           final decrypted = await _crypto.decrypt(widget.sharedKey, bytes);
@@ -184,6 +194,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
             modifiableMsg['content'] = decrypted;
             contentStr = decrypted;
             modifiableMsg['type'] = 'TEXT';
+            currentType = 'TEXT';
           } else {
             modifiableMsg['content'] = '🔒 Decryption failed';
           }
@@ -192,7 +203,8 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         }
       }
 
-      if (currentType == 'GRP_MSG' || currentType == 'TEXT') {
+      // Classify only generic GRP_MSG/TEXT messages by their content shape.
+      if (!isExplicitMedia && (currentType == 'GRP_MSG' || currentType == 'TEXT')) {
         if (contentStr.contains('.jpg') || contentStr.contains('.png') || contentStr.contains('.jpeg')) {
           modifiableMsg['type'] = 'IMAGE';
         } else if (contentStr.contains('.m4a') || contentStr.contains('.mp3')) {
