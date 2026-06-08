@@ -1920,27 +1920,34 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.groupName,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: widget.isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  if (_isContactTyping)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      'someone is typing...',
+                      widget.groupName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 10,
-                        color: themeColor,
-                        fontStyle: FontStyle.italic,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: widget.isDark ? Colors.white : Colors.black,
                       ),
                     ),
-                ],
+                    if (_isContactTyping)
+                      Text(
+                        'someone is typing...',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: themeColor,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
