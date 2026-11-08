@@ -285,16 +285,11 @@ We welcome community contributions! Please review [CONTRIBUTING.md](CONTRIBUTING
 
 ## 11. Authors & Acknowledgments
 
-### Core Contributors
-* **Asma Zarbab**
-* **Bushra Allah Ditta**
-* **Sehar Ashfaq**
-* **Tooba Fatima**
+### Maintainer & Release Manager
 * **Farhan Ashraf**
-* **Haiz**
 
-### Academic Supervision
-* **Ms. Huma Zahid**, Lecturer, Department of Computer Science, Govt Islamia Graduate College (W) Cooper Road, Lahore (affiliated with Lahore College for Women University).
+### Contributors
+* **VeilChat contributors**
 
 ---
 
