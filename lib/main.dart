@@ -29,6 +29,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'VeilChat',
       debugShowCheckedModeBanner: false,
+      showPerformanceOverlay: false,
       navigatorKey: navigatorKey,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: Colors.transparent,

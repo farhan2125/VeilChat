@@ -18,6 +18,20 @@ class Group {
   int? lastMessageTime;
   int unreadCount;
 
+  /// ✅ Task 3: usernames with admin privileges (the [owner] is always an
+  /// implicit admin and is *not* required to be in this list).
+  final List<String> admins;
+
+  /// Epoch-ms until which notifications stay muted. `0` = muted indefinitely
+  /// (only meaningful when [isMuted] is true).
+  int mutedUntil;
+
+  /// Optional per-group chat wallpaper (asset key or file path).
+  String? wallpaper;
+
+  /// Currently pinned message text shown in the group header banner.
+  String? pinnedMessage;
+
   Group({
     required this.id,
     required this.name,
@@ -29,7 +43,14 @@ class Group {
     this.lastMessage,
     this.lastMessageTime,
     this.unreadCount = 0,
-  });
+    List<String>? admins,
+    this.mutedUntil = 0,
+    this.wallpaper,
+    this.pinnedMessage,
+  }) : admins = admins ?? <String>[];
+
+  /// Everyone who can moderate: owner + explicit admins.
+  Set<String> get allAdmins => {owner, ...admins};
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -42,6 +63,10 @@ class Group {
         'lastMessage': lastMessage,
         'lastMessageTime': lastMessageTime,
         'unreadCount': unreadCount,
+        'admins': admins,
+        'mutedUntil': mutedUntil,
+        'wallpaper': wallpaper,
+        'pinnedMessage': pinnedMessage,
       };
 
   factory Group.fromJson(Map<String, dynamic> json) => Group(
@@ -55,8 +80,26 @@ class Group {
         lastMessage: json['lastMessage'],
         lastMessageTime: json['lastMessageTime'],
         unreadCount: json['unreadCount'] ?? 0,
+        admins: json['admins'] == null
+            ? <String>[]
+            : List<String>.from(json['admins']),
+        mutedUntil: json['mutedUntil'] ?? 0,
+        wallpaper: json['wallpaper'],
+        pinnedMessage: json['pinnedMessage'],
       );
+
+  /// Safely decodes the `admins` column, which is stored as a JSON array.
+  static List<String> decodeAdmins(Object? raw) {
+    if (raw == null) return <String>[];
+    if (raw is List) return raw.map((e) => e.toString()).toList();
+    try {
+      final decoded = jsonDecode(raw.toString());
+      if (decoded is List) return decoded.map((e) => e.toString()).toList();
+    } catch (_) {}
+    return <String>[];
+  }
 }
+
 
 class GroupService {
   static final GroupService _instance = GroupService._internal();
@@ -103,10 +146,15 @@ class GroupService {
         lastMessage: g['lastMessage'],
         lastMessageTime: g['lastMessageTime'],
         unreadCount: g['unreadCount'],
+        // ✅ hydrate the new admin/mute/wallpaper columns (null-safe)
+        admins: Group.decodeAdmins(g['admins']),
+        mutedUntil: (g['mutedUntil'] as num?)?.toInt() ?? 0,
+        wallpaper: g['wallpaper'] as String?,
+        pinnedMessage: g['pinnedMessage'] as String?,
       )).toList();
 
-      final existingMap = {for (var g in _groups) g.id: g};
       final dbMap = {for (var g in dbGroups) g.id: g};
+
       final merged = <Group>[];
 
       for (var g in dbGroups) {
@@ -307,11 +355,231 @@ class GroupService {
     }
   }
 
-  void leaveGroup(String groupId) {
-    NetworkService().sendPacket('GROUP_LEAVE', {
-      'groupId': groupId,
-      'sender': NetworkService().currentUser,
-    });
+  // ────────────────────────────────────────────────────────────
+  //  GROUP ADMIN CONTROLS (Task 3)
+  //
+  //  All four actions below were previously either missing or
+  //  "fire-and-forget" packets whose result never reached the UI. They now:
+  //    1. mutate the local model **optimistically**,
+  //    2. push the change through `_groupUpdateController` +
+  //       `_groupsController` so every listening widget rebuilds instantly,
+  //    3. persist to SQLite, and
+  //    4. return a bool so the caller can show a success/error SnackBar.
+  // ────────────────────────────────────────────────────────────
+
+  /// Persists the current member/admin state of [group] to SQLite.
+  Future<void> _persist(Group group) async {
+    final owner = NetworkService().currentUser;
+    if (owner == null) return;
+    try {
+      await DatabaseService().saveGroup(
+        accountOwner: owner,
+        id: group.id,
+        name: group.name,
+        owner: group.owner,
+        members: group.members,
+        createdAt: group.createdAt,
+        avatarPath: group.avatarPath,
+        isMuted: group.isMuted,
+        lastMessage: group.lastMessage,
+        lastMessageTime: group.lastMessageTime,
+        unreadCount: group.unreadCount,
+      );
+    } catch (e) {
+      debugPrint('❌ _persist(${group.id}) failed: $e');
+    }
+  }
+
+  /// Broadcasts [group] to all listeners (member list, header, chat list).
+  void _emit(Group group) {
+    if (!_groupUpdateController.isClosed) _groupUpdateController.add(group);
+    if (!_groupsController.isClosed) _groupsController.add(_groups);
+  }
+
+  /// True when [username] can perform admin actions in [group].
+  bool isAdmin(Group group, String username) =>
+      group.owner == username || group.admins.contains(username);
+
+  /// Adds [username] to [groupId]. Reflects immediately in the UI.
+  Future<bool> addMember(String groupId, String username) async {
+    final group = getGroup(groupId);
+    final me = NetworkService().currentUser;
+    if (group == null || me == null) return false;
+    if (!isAdmin(group, me)) {
+      debugPrint('⛔ addMember denied: $me is not an admin of $groupId');
+      return false;
+    }
+    if (group.members.contains(username)) return false;
+
+    group.members.add(username);
+    _emit(group); // ✅ instant UI update
+    await _persist(group);
+
+    try {
+      NetworkService().sendPacket('GRP_ADD_MEMBER', {
+        'groupId': groupId,
+        'member': username,
+        'sender': me,
+      });
+      return true;
+    } catch (e) {
+      // Roll back the optimistic mutation on transport failure.
+      group.members.remove(username);
+      _emit(group);
+      await _persist(group);
+      debugPrint('❌ addMember failed: $e');
+      return false;
+    }
+  }
+
+  /// Kicks [username] out of [groupId].
+  Future<bool> removeMember(String groupId, String username) async {
+    final group = getGroup(groupId);
+    final me = NetworkService().currentUser;
+    if (group == null || me == null) return false;
+    if (!isAdmin(group, me)) {
+      debugPrint('⛔ removeMember denied: $me is not an admin of $groupId');
+      return false;
+    }
+    if (username == group.owner) {
+      debugPrint('⛔ The group owner cannot be removed');
+      return false;
+    }
+
+    final index = group.members.indexOf(username);
+    if (index < 0) return false;
+
+    group.members.removeAt(index);
+    final wasAdmin = group.admins.remove(username);
+    _emit(group); // ✅ member disappears from the list immediately
+    await _persist(group);
+
+    try {
+      NetworkService().sendPacket('GRP_REMOVE_MEMBER', {
+        'groupId': groupId,
+        'member': username,
+        'sender': me,
+      });
+      return true;
+    } catch (e) {
+      group.members.insert(index, username);
+      if (wasAdmin) group.admins.add(username);
+      _emit(group);
+      await _persist(group);
+      debugPrint('❌ removeMember failed: $e');
+      return false;
+    }
+  }
+
+  /// Promotes [username] to admin.
+  Future<bool> promoteToAdmin(String groupId, String username) async {
+    final group = getGroup(groupId);
+    final me = NetworkService().currentUser;
+    if (group == null || me == null) return false;
+    if (!isAdmin(group, me)) return false;
+    if (!group.members.contains(username)) return false;
+    if (group.admins.contains(username) || username == group.owner) return false;
+
+    group.admins.add(username);
+    _emit(group);
+    await _persist(group);
+
+    try {
+      NetworkService().sendPacket('GRP_SET_ADMIN', {
+        'groupId': groupId,
+        'member': username,
+        'admin': true,
+        'sender': me,
+      });
+      return true;
+    } catch (e) {
+      group.admins.remove(username);
+      _emit(group);
+      debugPrint('❌ promoteToAdmin failed: $e');
+      return false;
+    }
+  }
+
+  /// Demotes [username] back to a regular member.
+  Future<bool> demoteAdmin(String groupId, String username) async {
+    final group = getGroup(groupId);
+    final me = NetworkService().currentUser;
+    if (group == null || me == null) return false;
+    // Only the owner may demote another admin.
+    if (group.owner != me) return false;
+    if (username == group.owner) return false;
+    if (!group.admins.remove(username)) return false;
+
+    _emit(group);
+    await _persist(group);
+
+    try {
+      NetworkService().sendPacket('GRP_SET_ADMIN', {
+        'groupId': groupId,
+        'member': username,
+        'admin': false,
+        'sender': me,
+      });
+      return true;
+    } catch (e) {
+      group.admins.add(username);
+      _emit(group);
+      debugPrint('❌ demoteAdmin failed: $e');
+      return false;
+    }
+  }
+
+  /// Mutes/unmutes group notifications until [until] (null = unmute).
+  Future<bool> setMuted(String groupId, DateTime? until) async {
+    final group = getGroup(groupId);
+    if (group == null) return false;
+    group.isMuted = until != null;
+    group.mutedUntil = until?.millisecondsSinceEpoch ?? 0;
+    _emit(group);
+    await _persist(group);
+    return true;
+  }
+
+  /// True when the group is currently muted (auto-expires).
+  bool isMutedNow(Group group) {
+    if (!group.isMuted) return false;
+    if (group.mutedUntil == 0) return true; // muted forever
+    if (DateTime.now().millisecondsSinceEpoch >= group.mutedUntil) {
+      group.isMuted = false;
+      group.mutedUntil = 0;
+      return false;
+    }
+    return true;
+  }
+
+  /// Leaves [groupId]. Removes the group locally straight away so the user is
+  /// never left staring at a chat they no longer belong to.
+  Future<bool> leaveGroup(String groupId) async {
+    final me = NetworkService().currentUser;
+    if (me == null) return false;
+    final group = getGroup(groupId);
+
+    try {
+      NetworkService().sendPacket('GROUP_LEAVE', {
+        'groupId': groupId,
+        'sender': me,
+      });
+    } catch (e) {
+      debugPrint('❌ leaveGroup packet failed: $e');
+      return false;
+    }
+
+    if (group != null) {
+      _groups.remove(group);
+      if (!_groupsController.isClosed) _groupsController.add(_groups);
+      try {
+        await DatabaseService().deleteGroup(me, groupId);
+        await DatabaseService().deleteGroupMessages(groupId);
+      } catch (e) {
+        debugPrint('❌ leaveGroup cleanup failed: $e');
+      }
+    }
+    return true;
   }
 
   void _handleGroupDeleted(Map<String, dynamic> data) {
@@ -512,7 +780,8 @@ class GroupService {
           id: groupId,
           lastMessage: (type == 'TEXT') ? content : '📁 Media',
           lastMessageTime: timestamp,
-          unreadCount: group!.unreadCount,
+          unreadCount: group.unreadCount,
+
         );
       } else {
         await DatabaseService().saveGroupMessage(

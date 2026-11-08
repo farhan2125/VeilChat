@@ -21,17 +21,31 @@ class VeilBackground extends StatelessWidget {
     }
   }
 
+  /// ✅ BUG FIX #2: resolve a stored wallpaper path into an ImageProvider.
+  ///
+  /// Handles BOTH bundled asset paths (`assets/images/x.jpg`) and uploaded
+  /// device file paths transparently, and returns null when a file path no
+  /// longer resolves so the caller can fall back gracefully instead of
+  /// rendering a black screen.
+  ImageProvider? _providerForPath(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('assets/')) return AssetImage(path);
+    final f = File(path);
+    if (f.existsSync()) return FileImage(f);
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Custom chat wallpaper (per-contact)
-    if (screenIndex == 99 && VeilTheme.chatBgPath != null) {
-      final f = File(VeilTheme.chatBgPath!);
-      if (f.existsSync()) return _img(FileImage(f));
+    if (screenIndex == 99) {
+      final provider = _providerForPath(VeilTheme.chatBgPath);
+      if (provider != null) return _img(provider);
     }
     // Custom main wallpaper override
-    if (screenIndex != 99 && VeilTheme.useCustomBg && VeilTheme.customBgPath != null) {
-      final f = File(VeilTheme.customBgPath!);
-      if (f.existsSync()) return _img(FileImage(f));
+    if (screenIndex != 99 && VeilTheme.useCustomBg) {
+      final provider = _providerForPath(VeilTheme.customBgPath);
+      if (provider != null) return _img(provider);
     }
     // Use per-screen asset image
     final asset = _assetForScreen();
@@ -39,15 +53,17 @@ class VeilBackground extends StatelessWidget {
       return _img(AssetImage(asset));
     }
     // Fallback: procedural
-    return RepaintBoundary(
-      child: CustomPaint(
-        painter: _BgPainter(
-            isDark: isDark,
-            style: VeilTheme.currentWallpaper,
-            accent: VeilTheme.accentColor),
-      ),
-    );
+    return _proceduralBackground();
   }
+
+  Widget _proceduralBackground() => RepaintBoundary(
+    child: CustomPaint(
+      painter: _BgPainter(
+          isDark: isDark,
+          style: VeilTheme.currentWallpaper,
+          accent: VeilTheme.accentColor),
+    ),
+  );
 
   Widget _img(ImageProvider p) => Stack(fit: StackFit.expand, children: [
     Image(
@@ -55,9 +71,13 @@ class VeilBackground extends StatelessWidget {
       fit: BoxFit.cover,
       filterQuality: FilterQuality.medium,
       gaplessPlayback: true, // prevents flicker on rebuild
+      // ✅ BUG FIX #2: a deleted/purged wallpaper file must never leave the
+      // user staring at a black rectangle — degrade to the procedural bg.
+      errorBuilder: (_, __, ___) => _proceduralBackground(),
     ),
     Container(color: Colors.black.withOpacity(isDark ? 0.55 : 0.15)),
   ]);
+
 }
 
 class _BgPainter extends CustomPainter {

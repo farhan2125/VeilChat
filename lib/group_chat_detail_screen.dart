@@ -22,6 +22,8 @@ import 'services/file_transfer_service.dart';
 import 'services/stego_service.dart';
 import 'services/media_service.dart';
 import 'call_screen.dart';
+import 'group_info_screen.dart';
+
 
 class GroupChatDetailScreen extends StatefulWidget {
   final String groupId;
@@ -87,7 +89,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
   final Set<int> _downloadingMedia = {}; // 🔥 TRACK DOWNLOADS
 
   final List<String> _emojis = [
+    // VeilChat signature trio pinned to the front of the palette
+    "😳","🤪","🥴",
     "😀","😂","🤣","😍","🥰","😎","🤔","🤨","😐","😑","😶","🙄","😏",
+
     "😣","😥","😮","😯","😪","😫","😴","😌","😛","😜","😝","🤤","😒",
     "😓","😔","😕","🙃","🤑","😲","☹️","🙁","😖","😞","😟","😤","😢",
     "😭","😦","😧","😨","😩","🤯","😬","😶‍🌫️","😱","🥵","🥶","😳","🤪",
@@ -1257,7 +1262,13 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: ['❤️', '😂', '😮', '😢', '👍', '🔥', '🎉', '😡', '🙏', '💯', '😍', '🤔']
+              children: const [
+                '❤️', '😂', '😮', '😢', '👍', '🔥',
+                '🎉', '😡', '🙏', '💯', '😍', '🤔',
+                // VeilChat signature quick reactions
+                '😳', '🤪', '🥴',
+              ]
+
                   .map((emoji) {
                     final isSelected = _messages[index]['reaction'] == emoji;
                     return GestureDetector(
@@ -1401,12 +1412,159 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     });
   }
 
+  /// ✅ Task 3: opens the new premium Group Info & Management screen.
+  /// The old inline dialog is preserved below as `_showLegacyGroupInfo()` for
+  /// reference but is no longer reachable from the UI.
   void _showGroupInfo() {
+    HapticFeedback.selectionClick();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GroupInfoScreen(
+          groupId: widget.groupId,
+          currentUser: _currentUser,
+          isDark: widget.isDark,
+          onSearchRequested: _openGroupSearch,
+          onWallpaperChanged: (_) {
+            if (mounted) setState(() {});
+          },
+        ),
+      ),
+    ).then((result) {
+      if (!mounted) return;
+      if (result == 'left') Navigator.pop(context);
+      setState(() {}); // reflect membership/wallpaper changes on return
+    });
+  }
+
+  /// Opens a lightweight in-conversation search. Kept intentionally simple so
+  /// it never blocks the render thread: filtering happens on the already
+  /// in-memory `_messages` list.
+  void _openGroupSearch() {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final query = controller.text.trim().toLowerCase();
+          final results = query.isEmpty
+              ? const <Map<String, dynamic>>[]
+              : _messages
+                  .where((m) =>
+                      (m['type'] ?? 'TEXT') == 'TEXT' &&
+                      (m['content'] ?? '')
+                          .toString()
+                          .toLowerCase()
+                          .contains(query))
+                  .toList()
+                  .reversed
+                  .toList();
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(26)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  height: MediaQuery.of(ctx).size.height * 0.7,
+                  color: (widget.isDark ? const Color(0xFF0D1117) : Colors.white)
+                      .withOpacity(0.94),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          onChanged: (_) => setSheet(() {}),
+                          style: TextStyle(
+                              color: widget.isDark
+                                  ? Colors.white
+                                  : Colors.black87),
+                          decoration: InputDecoration(
+                            hintText: 'Search in this group…',
+                            prefixIcon: Icon(Icons.search_rounded,
+                                color: VeilTheme.accentColor, size: 20),
+                            filled: true,
+                            fillColor: (widget.isDark
+                                    ? Colors.white
+                                    : Colors.black)
+                                .withOpacity(0.05),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: results.isEmpty
+                            ? Center(
+                                child: Text(
+                                  query.isEmpty
+                                      ? 'Type to search messages'
+                                      : 'No matches',
+                                  style: TextStyle(
+                                      color: widget.isDark
+                                          ? Colors.white38
+                                          : Colors.black38,
+                                      fontSize: 13),
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: results.length,
+                                itemBuilder: (_, i) {
+                                  final m = results[i];
+                                  return ListTile(
+                                    title: Text(
+                                      m['content'].toString(),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 13.5,
+                                          color: widget.isDark
+                                              ? Colors.white
+                                              : Colors.black87),
+                                    ),
+                                    subtitle: Text(
+                                      '${m['sender']} · '
+                                      '${DateFormat('MMM d, HH:mm').format(DateTime.fromMillisecondsSinceEpoch((m['timestamp'] as num?)?.toInt() ?? 0))}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: widget.isDark
+                                              ? Colors.white38
+                                              : Colors.black45),
+                                    ),
+                                    onTap: () => Navigator.pop(ctx),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  void _showLegacyGroupInfo() {
     final themeColor = VeilTheme.accentColor;
     final grpObj = GroupService().getGroup(widget.groupId);
     final groupOwner = grpObj?.owner ?? '';
     final isOwner = _currentUser == groupOwner;
     showDialog(
+
       context: context,
       barrierColor: Colors.black.withOpacity(0.65),
       builder: (ctx) => Dialog(

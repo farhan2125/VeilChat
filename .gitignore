@@ -1,8 +1,14 @@
-# Miscellaneous
+# ============================================================================
+# VeilChat Comprehensive .gitignore
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Operating System & IDE Files
+# ----------------------------------------------------------------------------
 *.class
 *.log
-*.pyc
 *.swp
+*.bak
 .DS_Store
 .atom/
 .build/
@@ -12,40 +18,90 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# IntelliJ / Android Studio
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Visual Studio Code
+.vscode/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# ----------------------------------------------------------------------------
+# Flutter & Dart Build Output & Caches
+# ----------------------------------------------------------------------------
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
 
-# Symbolication related
-app.*.symbols
+# Android build artifacts
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+android/.gradle/
+android/captures/
+*.apk
+*.aab
 
-# Obfuscation related
+# iOS & macOS build artifacts
+**/ios/Flutter/.last_build_id
+ios/.symlinks/
+ios/Pods/
+ios/Podfile.lock
+
+# Symbolication & Obfuscation
+app.*.symbols
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# ----------------------------------------------------------------------------
+# Python Backend & Virtual Environments
+# ----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+ENV/
+dist/
+*.egg-info/
 
-# VeilChat: do not track archives, helper scripts, or server media uploads
+# ----------------------------------------------------------------------------
+# VeilChat Sensitive Runtime Data & Media Storage
+# ----------------------------------------------------------------------------
+# Runtime user databases containing real passwords & chats (use .example templates)
+server/server_users.json
+server/server_offline.json
+server/server_groups.json
+server/server_profiles.json
+
+# Out-of-band uploaded encrypted user media
+server/media_uploads/
+
+# Local archives and test dumps
 lib.zip
 server.zip
 check_veilchat.py
-server/media_uploads/
+
+# ----------------------------------------------------------------------------
+# Sensitive Credentials & Signing Keys
+# ----------------------------------------------------------------------------
+*.keystore
+*.jks
+android/key.properties
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+.env
+.env.*
+!.env.example
+
+# ----------------------------------------------------------------------------
+# Academic Reports & Internal Personal Documents
+# ----------------------------------------------------------------------------
+Documentaion.pdf
+Proposal.pdf
+scratch/

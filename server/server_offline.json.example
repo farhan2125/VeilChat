@@ -1,0 +1,12 @@
+{
+  "bob": [
+    {
+      "to_user": "bob",
+      "content": "example_encrypted_hex_payload",
+      "sender": "alice",
+      "timestamp": 1700000000000,
+      "messageId": "1700000000001",
+      "type": "TEXT"
+    }
+  ]
+}

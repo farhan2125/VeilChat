@@ -118,9 +118,83 @@ class StegoService {
     }
   }
 
+  /// ✅ BUG FIX #4: Stego image gallery save failure.
+  ///
+  /// Saves a raw decoded image byte stream straight into the device's public
+  /// media library. `gal` writes through MediaStore on Android (so it works
+  /// under scoped storage on API 29+ with no WRITE_EXTERNAL_STORAGE) and via
+  /// PHPhotoLibrary on iOS.
+  ///
+  /// The two historical failure modes are handled explicitly:
+  ///   1. Missing permission — we check `hasAccess` and request it before
+  ///      writing instead of letting the plugin throw.
+  ///   2. Byte-stream formatting — `Gal.putImageBytes` requires a real
+  ///      `Uint8List`; a plain `List<int>` (what `img.encodePng` returns)
+  ///      silently fails on some Android builds, so we always normalise it.
+  Future<StegoResult> saveBytesToGallery(
+    List<int> bytes, {
+    String? name,
+    String album = 'VeilChat',
+  }) async {
+    try {
+      if (bytes.isEmpty) {
+        return StegoResult.failure('Image data is empty');
+      }
+
+      final hasAccess = await Gal.hasAccess(toAlbum: true);
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess(toAlbum: true);
+        if (!granted) {
+          return StegoResult.failure(
+              'Gallery permission denied. Enable Photos/Media access in Settings.');
+        }
+      }
+
+      final fileName = name ?? 'veilchat_${DateTime.now().millisecondsSinceEpoch}';
+
+      await Gal.putImageBytes(
+        bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
+        name: fileName,
+        album: album,
+      );
+
+      debugPrint('✅ Image saved to gallery: $fileName');
+      return StegoResult.success(null, message: 'Saved to Gallery > $album');
+    } on GalException catch (e) {
+      debugPrint('❌ Gal save error: ${e.type}');
+      switch (e.type) {
+        case GalExceptionType.accessDenied:
+          return StegoResult.failure(
+              'Gallery permission denied. Enable Photos/Media access in Settings.');
+        case GalExceptionType.notEnoughSpace:
+          return StegoResult.failure('Not enough storage space to save image.');
+        case GalExceptionType.notSupportedFormat:
+          return StegoResult.failure('This image format is not supported.');
+        default:
+          return StegoResult.failure('Could not save image: ${e.type}');
+      }
+    } catch (e) {
+      debugPrint('❌ saveBytesToGallery error: $e');
+      return StegoResult.failure('Could not save image: $e');
+    }
+  }
+
+  /// Convenience wrapper — saves an existing image [file] to the gallery.
+  Future<StegoResult> saveFileToGallery(File file, {String? name}) async {
+    try {
+      if (!await file.exists()) {
+        return StegoResult.failure('Image file no longer exists');
+      }
+      return saveBytesToGallery(await file.readAsBytes(), name: name);
+    } catch (e) {
+      return StegoResult.failure('Could not read image: $e');
+    }
+  }
+
   Future<StegoResult> extractMessage({
     required File imageFile,
     required String password,
+
   }) async {
     try {
       final bytes = await imageFile.readAsBytes();

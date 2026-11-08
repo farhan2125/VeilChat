@@ -38,35 +38,86 @@ class DatabaseService {
     );
   }
 
+  /// Returns the set of column names currently present on [table].
+  /// Returns an empty set when the table does not exist.
+  Future<Set<String>> _columnsOf(Database db, String table) async {
+    try {
+      final rows = await db.rawQuery('PRAGMA table_info($table)');
+      return rows
+          .map((r) => (r['name'] ?? '').toString())
+          .where((n) => n.isNotEmpty)
+          .toSet();
+    } catch (_) {
+      return <String>{};
+    }
+  }
+
   /// Called every time the database is opened.
-  /// Safely adds any columns that may be missing from older DB versions.
-  /// Using try/catch so if column already exists, the error is silently ignored.
+  ///
+  /// ✅ LOG FIX: the previous implementation fired ~12 unconditional
+  /// `ALTER TABLE` statements on **every** app launch and relied on the thrown
+  /// exception to detect "already exists". That produced the wall of
+  /// `E/SQLiteLog (1) duplicate column name: …` errors in logcat and burned
+  /// main-isolate time during first frame.
+  ///
+  /// We now introspect the schema once per table with `PRAGMA table_info` and
+  /// only issue the ALTERs that are genuinely missing — zero errors, zero
+  /// wasted statements.
   Future<void> _onOpen(Database db) async {
-    // ✅ FIX: Add isHidden/hiddenKey to messages table if missing
-    // These were added in _onCreate (v9+) but existing databases from v1-v8
-    // never received an ALTER TABLE migration for the messages table.
-    const safeAlters = [
-      'ALTER TABLE messages ADD COLUMN isHidden INTEGER DEFAULT 0',
-      'ALTER TABLE messages ADD COLUMN hiddenKey TEXT',
-      'ALTER TABLE messages ADD COLUMN isPinned INTEGER DEFAULT 0',
-      'ALTER TABLE messages ADD COLUMN pinnedAt INTEGER',
-      'ALTER TABLE messages ADD COLUMN reaction TEXT',
-      'ALTER TABLE messages ADD COLUMN extra TEXT',
-      'ALTER TABLE messages ADD COLUMN metadata TEXT',
-      'ALTER TABLE group_messages ADD COLUMN metadata TEXT',
-      'ALTER TABLE messages ADD COLUMN status TEXT DEFAULT "sent"',
-      'ALTER TABLE messages ADD COLUMN read INTEGER DEFAULT 0',
-      'ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0',
-      'ALTER TABLE messages ADD COLUMN messageId TEXT',
-    ];
-    for (final sql in safeAlters) {
-      try {
-        await db.execute(sql);
-      } catch (_) {
-        // Column already exists — safe to ignore
+    // table -> { column : definition }
+    const required = <String, Map<String, String>>{
+      'messages': {
+        'isHidden': 'INTEGER DEFAULT 0',
+        'hiddenKey': 'TEXT',
+        'isPinned': 'INTEGER DEFAULT 0',
+        'pinnedAt': 'INTEGER',
+        'reaction': 'TEXT',
+        'extra': 'TEXT',
+        'metadata': 'TEXT',
+        'status': 'TEXT DEFAULT "sent"',
+        'read': 'INTEGER DEFAULT 0',
+        'delivered': 'INTEGER DEFAULT 0',
+        'messageId': 'TEXT',
+      },
+      'group_messages': {
+        'metadata': 'TEXT',
+        'isHidden': 'INTEGER DEFAULT 0',
+        'hiddenKey': 'TEXT',
+      },
+      // Group admin roles (Task 3): persisted as a JSON string array.
+      'groups': {
+        'admins': 'TEXT',
+        'mutedUntil': 'INTEGER DEFAULT 0',
+        'wallpaper': 'TEXT',
+        'pinnedMessage': 'TEXT',
+      },
+    };
+
+    int added = 0;
+    for (final entry in required.entries) {
+      final table = entry.key;
+      final existing = await _columnsOf(db, table);
+      if (existing.isEmpty) continue; // table not present in this schema
+
+      for (final col in entry.value.entries) {
+        if (existing.contains(col.key)) continue;
+        try {
+          await db.execute(
+            'ALTER TABLE $table ADD COLUMN ${col.key} ${col.value}',
+          );
+          added++;
+        } catch (e) {
+          // Genuinely unexpected — surface it rather than swallowing blindly.
+          debugPrint('⚠️ DB migrate $table.${col.key} failed: $e');
+        }
       }
     }
-    debugPrint('✅ DB onOpen: column checks complete');
+
+    debugPrint(
+      added == 0
+          ? '✅ DB onOpen: schema up to date (no migrations needed)'
+          : '✅ DB onOpen: applied $added column migration(s)',
+    );
   }
 
   Future<void> _onConfigure(Database db) async {
@@ -792,6 +843,32 @@ class DatabaseService {
     );
   }
 
+  /// Deletes a single call-log row. Used by swipe-to-delete in Call History.
+  Future<void> deleteCallLog(int id) async {
+    final db = await database;
+    try {
+      await db.delete('call_logs', where: 'id = ?', whereArgs: [id]);
+    } catch (e) {
+      debugPrint('❌ Failed to delete call log $id: $e');
+      rethrow;
+    }
+  }
+
+  /// Wipes the entire call history for [owner].
+  Future<int> clearCallLogs(String owner) async {
+    final db = await database;
+    try {
+      return await db.delete(
+        'call_logs',
+        where: 'accountOwner = ?',
+        whereArgs: [owner],
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to clear call logs: $e');
+      rethrow;
+    }
+  }
+
   // ------------------------------------------------------------------------
   //                     FILE CACHE OPERATIONS
   // ------------------------------------------------------------------------
@@ -871,6 +948,10 @@ class DatabaseService {
     String? lastMessage,
     int? lastMessageTime,
     int unreadCount = 0,
+    List<String>? admins,
+    int mutedUntil = 0,
+    String? wallpaper,
+    String? pinnedMessage,
   }) async {
     final db = await database;
     try {
@@ -889,9 +970,14 @@ class DatabaseService {
           'lastMessage': lastMessage,
           'lastMessageTime': lastMessageTime,
           'unreadCount': unreadCount,
+          'admins': jsonEncode(admins ?? const <String>[]),
+          'mutedUntil': mutedUntil,
+          'wallpaper': wallpaper,
+          'pinnedMessage': pinnedMessage,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+
       debugPrint('✅ Group saved: $id');
     } catch (e) {
       debugPrint('❌ Failed to save group: $e');
@@ -940,6 +1026,10 @@ class DatabaseService {
     String? lastMessage,
     int? lastMessageTime,
     int? unreadCount,
+    List<String>? admins,
+    int? mutedUntil,
+    String? wallpaper,
+    String? pinnedMessage,
   }) async {
     final db = await database;
     final updates = <String, dynamic>{};
@@ -949,6 +1039,11 @@ class DatabaseService {
     if (lastMessage != null) updates['lastMessage'] = lastMessage;
     if (lastMessageTime != null) updates['lastMessageTime'] = lastMessageTime;
     if (unreadCount != null) updates['unreadCount'] = unreadCount;
+    if (admins != null) updates['admins'] = jsonEncode(admins);
+    if (mutedUntil != null) updates['mutedUntil'] = mutedUntil;
+    if (wallpaper != null) updates['wallpaper'] = wallpaper;
+    if (pinnedMessage != null) updates['pinnedMessage'] = pinnedMessage;
+
     if (updates.isEmpty) return;
     try {
       await db.update(

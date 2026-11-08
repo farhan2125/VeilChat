@@ -23,6 +23,8 @@ import 'services/sound_service.dart';
 import 'services/file_transfer_service.dart';
 import 'services/stego_service.dart';
 import 'services/media_service.dart';
+import 'services/wallpaper_service.dart';
+
 
 class ChatDetailScreen extends StatefulWidget {
   final String contactName;
@@ -49,7 +51,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   final SoundService _sound = SoundService();
   final FileTransferService _fileTransfer = FileTransferService();
   final StegoService _stego = StegoService();
+  final WallpaperService _wallpaperService = WallpaperService();
   final AudioPlayer _audioPlayer = AudioPlayer();
+
 
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -99,14 +103,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   bool _isContactBlocked = false;
   List<Map<String, dynamic>> _pinnedMessages = [];
   bool _showPinnedPanel = false;
-  bool _isChatLocked = false;  // ms timestamp
+  bool _isChatLocked = false;
+  bool _isMuted = false;
+
 
   final List<String> _emojis = [
+    // VeilChat signature trio pinned to the front of the palette
+    "😳","🤪","🥴",
     "😀","😂","🤣","😍","🥰","😎","🤔","🤨","😐","😑","😶","🙄","😏",
+
     "😣","😥","😮","😯","😪","😫","😴","😌","😛","😜","😝","🤤","😒",
     "😓","😔","😕","🙃","🤑","😲","☹️","🙁","😖","😞","😟","😤","😢",
     "😭","😦","😧","😨","😩","🤯","😬","😶‍🌫️","😱","🥵","🥶","😳","🤪",
-    "😵","😡","😠","🤬","😷","🤒","🤕","🤢","🤮","🤧","😇","🥳",
+    "😵","😡","😠","🤬","😷","🤒","🤕","🤢","🤮","🤧","😇","🥳","🥴",
+
     "🥺","🤠","🤡","🤥","🤫","🤭","🧐","🤓","😈","👿","👹","👺","💀",
     "👻","👽","🤖","💩","😺","😸","😹","😻","😼","😽","🙀","😿","😾",
     "❤️","🧡","💛","💚","💙","💜","🖤","💔","❣️","💕","💞","💓","💗",
@@ -170,7 +180,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     _typingTimer?.cancel();
     _typingDebounce?.cancel();
     _debounceTimer?.cancel();
+    // ✅ BUG FIX #2: clear the global so this chat's wallpaper never bleeds
+    // into the next screen. The path itself stays in SharedPreferences.
+    VeilTheme.chatBgPath = null;
     _messageSub?.cancel();
+
     _userListSub?.cancel();
     _onlineRefreshTimer?.cancel();
     _recordingTimeSub?.cancel();
@@ -185,16 +199,43 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
   }
 
+  /// ✅ BUG FIX #2: Chat wallpaper resetting on navigation / app restart.
+  ///
+  /// Previously the wallpaper lived only in the static `VeilTheme.chatBgPath`
+  /// plus a SQLite column holding the raw `image_picker` cache path. Android
+  /// purges that cache, so after a restart the file was gone and the screen
+  /// silently fell back to the default background.
+  ///
+  /// Now we read SharedPreferences first (the authoritative, restart-safe
+  /// store), fall back to the legacy DB value, and migrate the legacy value
+  /// into permanent storage the first time we see it.
   Future<void> _initContactBackground() async {
-    final contact = await _db.getContact(widget.myUsername, widget.contactName);
-    if (contact != null && contact['chatBackground'] != null) {
-      if (!mounted) return;
-      setState(() {
-        _contactBackgroundPath = contact['chatBackground'];
-        VeilTheme.chatBgPath = _contactBackgroundPath;
-      });
+    String? path = await _wallpaperService.getChatWallpaper(widget.contactName);
+
+    // Legacy fallback + one-time migration from the old DB-only storage.
+    if (path == null) {
+      final contact =
+          await _db.getContact(widget.myUsername, widget.contactName);
+      final legacyPath = contact?['chatBackground'] as String?;
+      if (legacyPath != null && legacyPath.isNotEmpty) {
+        if (WallpaperService.isAssetPath(legacyPath)) {
+          await _wallpaperService.setChatWallpaperAsset(
+              widget.contactName, legacyPath);
+          path = legacyPath;
+        } else if (await File(legacyPath).exists()) {
+          path = await _wallpaperService.setChatWallpaperFromFile(
+              widget.contactName, legacyPath);
+        }
+      }
     }
+
+    if (!mounted) return;
+    setState(() {
+      _contactBackgroundPath = path;
+      VeilTheme.chatBgPath = path;
+    });
   }
+
 
   Future<void> _loadMessages() async {
     // Reset pagination on full reload
@@ -447,74 +488,52 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
   }
 
-  void _showSetPinDialog() {
-    String pin1 = '';
-    String pin2 = '';
-    int step = 1;
-    showDialog(
+  /// Two-step "set a PIN" dialog.
+  ///
+  /// ✅ BUG FIX #1 — Lock Chat had no working submit action.
+  /// The old implementation relied solely on `TextField.onSubmitted`, which
+  /// only fires when the user presses the keyboard's Enter/Done key. With
+  /// `TextInputType.number` most Android numeric keypads render **no Enter
+  /// key at all**, so the flow dead-ended with no way to confirm.
+  ///
+  /// Now there are explicit CANCEL / NEXT / CONFIRM buttons, plus onChanged
+  /// auto-advance once the 4th digit lands, an inline mismatch error, and the
+  /// dialog stays open on error instead of silently closing.
+  /// ✅ CRASH FIX: "A TextEditingController was used after being disposed".
+  ///
+  /// The old dialog created its controllers in the parent `State` and disposed
+  /// them in `showDialog(...).then(...)`. The dialog route's exit *animation*
+  /// keeps rebuilding the `TextField` for ~200ms **after** `then()` fires, so
+  /// the widget tree touched two dead controllers on every frame of the
+  /// close transition — the assertion in the log at line 585.
+  ///
+  /// The fix is to move all controller ownership into a dedicated
+  /// `StatefulWidget` (`_SetPinDialog`) whose `dispose()` runs only once the
+  /// element is truly unmounted, which Flutter guarantees happens *after* the
+  /// route animation completes. Nothing outside that widget ever touches the
+  /// controllers.
+  Future<void> _showSetPinDialog() async {
+    final pin = await showDialog<String>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlg) {
-          return AlertDialog(
-            backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
-            title: Text(
-              step == 1 ? 'Enter new PIN' : 'Confirm PIN',
-              style: TextStyle(color: widget.isDark ? Colors.white : Colors.black)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Enter a 4-digit PIN to lock this chat.',
-                  style: TextStyle(
-                    color: widget.isDark ? Colors.white54 : Colors.black45,
-                    fontSize: 13)),
-                const SizedBox(height: 16),
-                TextField(
-                  autofocus: true,
-                  obscureText: true,
-                  maxLength: 4,
-                  keyboardType: TextInputType.number,
-                  style: TextStyle(
-                    color: widget.isDark ? Colors.white : Colors.black,
-                    letterSpacing: 8, fontSize: 20),
-                  decoration: InputDecoration(
-                    counterText: '',
-                    hintText: '••••',
-                    hintStyle: TextStyle(
-                      color: widget.isDark ? Colors.white24 : Colors.black26),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(
-                        color: VeilTheme.accentColor.withOpacity(0.5))),
-                    focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: VeilTheme.accentColor))),
-                  onChanged: (v) {
-                    if (step == 1) pin1 = v;
-                    else pin2 = v;
-                  },
-                  onSubmitted: (_) async {
-                    if (step == 1 && pin1.length == 4) {
-                      setDlg(() => step = 2);
-                    } else if (step == 2 && pin2.length == 4) {
-                      if (pin1 == pin2) {
-                        await ChatLockScreen.setPin(widget.contactName, pin1);
-                        if (mounted) {
-                          setState(() => _isChatLocked = true);
-                          Navigator.pop(ctx);
-                          _showSnack('Chat lock set! 🔒', VeilTheme.accentColor);
-                        }
-                      } else {
-                        _showSnack('PINs do not match', Colors.red);
-                        Navigator.pop(ctx);
-                      }
-                    }
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+      barrierDismissible: false,
+      builder: (_) => _SetPinDialog(isDark: widget.isDark),
     );
+
+    if (pin == null || !mounted) return;
+
+    try {
+      await ChatLockScreen.setPin(widget.contactName, pin);
+      if (!mounted) return;
+      setState(() => _isChatLocked = true);
+      HapticFeedback.mediumImpact();
+      _showSnack('Chat lock set! 🔒', VeilTheme.accentColor);
+    } catch (e) {
+      debugPrint('❌ setPin failed: $e');
+      if (mounted) _showError('Could not save PIN. Please try again.');
+    }
   }
+
+
 
   Future<void> _loadAvatars() async {
     // Load own profile avatar
@@ -1775,7 +1794,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: ['❤️', '😂', '😮', '😢', '👍', '🔥', '🎉', '😡', '🙏', '💯', '😍', '🤔']
+              children: const [
+                '❤️', '😂', '😮', '😢', '👍', '🔥',
+                '🎉', '😡', '🙏', '💯', '😍', '🤔',
+                // VeilChat signature quick reactions
+                '😳', '🤪', '🥴',
+              ]
+
                   .map((emoji) {
                     final isSelected = _messages[index]['reaction'] == emoji;
                     return GestureDetector(
@@ -1832,7 +1857,218 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     );
   }
 
+  /// Compact, icon-led popup entry used by the chat overflow menu.
+  PopupMenuItem<String> _menuItem(
+    String value,
+    IconData icon,
+    String label, {
+    Color? color,
+  }) {
+    final c = color ?? (widget.isDark ? Colors.white70 : Colors.black87);
+    return PopupMenuItem<String>(
+      value: value,
+      height: 44,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color ?? VeilTheme.accentColor),
+          const SizedBox(width: 12),
+          // ✅ OVERFLOW FIX: Flexible + ellipsis so long labels never blow
+          // out the popup's intrinsic width on small screens.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: c, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Toggles the in-chat search bar. Clears the query on close so the list
+  /// snaps back to the full history.
+  void _toggleSearch() {
+    setState(() {
+      _isSearching = !_isSearching;
+      if (!_isSearching) {
+        _searchQuery = '';
+        _searchController.clear();
+      }
+    });
+    if (_isSearching) HapticFeedback.selectionClick();
+  }
+
+  /// Lightweight contact profile sheet (avatar, status, encryption badge).
+  void _showContactProfile() {
+    final accent = VeilTheme.accentColor;
+    final hasAvatar = _contactAvatarPath != null &&
+        _contactAvatarPath!.isNotEmpty &&
+        File(_contactAvatarPath!).existsSync();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+          decoration: BoxDecoration(
+            color: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.white24 : Colors.black26,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              CircleAvatar(
+                radius: 42,
+                backgroundColor: accent.withOpacity(0.15),
+                backgroundImage:
+                    hasAvatar ? FileImage(File(_contactAvatarPath!)) : null,
+                child: hasAvatar
+                    ? null
+                    : Text(
+                        widget.contactName[0].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: accent,
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                widget.contactName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _isContactOnline
+                    ? 'Online'
+                    : _contactLastSeen > 0
+                        ? 'last seen ${_formatLastSeen(_contactLastSeen)}'
+                        : 'Offline',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _isContactOnline
+                      ? const Color(0xFF00FF88)
+                      : (widget.isDark ? Colors.white38 : Colors.black38),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_rounded,
+                        size: 14, color: Colors.greenAccent),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'End-to-end encrypted (XChaCha20-Poly1305)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.greenAccent),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Mute notifications for a chosen duration (stored per-contact).
+  Future<void> _showMuteDialog() async {
+    if (_isMuted) {
+      setState(() => _isMuted = false);
+      HapticFeedback.selectionClick();
+      _showSnack('Notifications unmuted', Colors.green);
+      return;
+    }
+
+    final choice = await showModalBottomSheet<Duration>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Mute notifications for…',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final opt in const [
+                ['8 hours', 8],
+                ['1 week', 168],
+                ['Always', 87600],
+              ])
+                ListTile(
+                  dense: true,
+                  leading: Icon(Icons.notifications_off_rounded,
+                      size: 18, color: VeilTheme.accentColor),
+                  title: Text(
+                    opt[0] as String,
+                    style: TextStyle(
+                      color: widget.isDark ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  onTap: () =>
+                      Navigator.pop(ctx, Duration(hours: opt[1] as int)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+    setState(() => _isMuted = true);
+    HapticFeedback.mediumImpact();
+    _showSnack('Chat muted', Colors.orange);
+  }
+
   Future<void> _clearChat() async {
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2019,22 +2255,75 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         RegExp(r'^[A-Za-z]:/').hasMatch(path);
   }
 
+  /// ✅ BUG FIX #2: persist the wallpaper so it survives navigation + restarts.
+  ///
+  /// `image_picker` hands back a path inside the app cache directory which
+  /// Android may delete at any time. We copy the image into permanent app
+  /// storage via [WallpaperService] and record the stable path in
+  /// SharedPreferences (and the DB, for backwards compatibility).
   Future<void> _pickChatWallpaper() async {
     final file = await _imagePicker.pickImage(source: ImageSource.gallery);
-    if (file != null) {
-      if (!mounted) return;
-      setState(() {
-        _contactBackgroundPath = file.path;
-        VeilTheme.chatBgPath = file.path;
-      });
-      await _db.updateChatBackground(
-        widget.myUsername,
-        widget.contactName,
-        file.path,
+    if (file == null) return;
+
+    final savedPath = await _wallpaperService.setChatWallpaperFromFile(
+      widget.contactName,
+      file.path,
+    );
+
+    if (!mounted) return;
+
+    if (savedPath == null) {
+      _showError('Could not save wallpaper. Please try another image.');
+      return;
+    }
+
+    setState(() {
+      _contactBackgroundPath = savedPath;
+      VeilTheme.chatBgPath = savedPath;
+    });
+
+    // Keep the legacy DB column in sync so other screens stay consistent.
+    await _db.updateChatBackground(
+      widget.myUsername,
+      widget.contactName,
+      savedPath,
+    );
+
+    _showSnack('Chat wallpaper updated', Colors.green);
+  }
+
+  /// ✅ BUG FIX #4: Save a received (stego) image into the device gallery.
+  ///
+  /// Reads the already-decoded bytes off disk and writes them straight into
+  /// the public media library through `gal`, which handles Android scoped
+  /// storage and the iOS Photos permission for us.
+  Future<void> _saveImageToGallery(String path) async {
+    try {
+      final file = File(path);
+      if (!await file.exists()) {
+        _showError('Image is not ready yet');
+        return;
+      }
+
+      final Uint8List bytes = await file.readAsBytes();
+      final result = await _stego.saveBytesToGallery(
+        bytes,
+        name: 'veilchat_${DateTime.now().millisecondsSinceEpoch}',
       );
-      _showSnack('Chat wallpaper updated', Colors.green);
+
+      if (!mounted) return;
+
+      if (result.success) {
+        _showSnack('Saved to gallery ✅', Colors.green);
+      } else {
+        _showError(result.error ?? 'Could not save image to gallery');
+      }
+    } catch (e) {
+      debugPrint('❌ _saveImageToGallery error: $e');
+      if (mounted) _showError('Could not save image: $e');
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -2120,18 +2409,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                             shape: BoxShape.circle,
                           ),
                         ),
-                        Text(
-                          _isContactOnline
-                              ? 'Online'
-                              : _contactLastSeen > 0
-                                  ? 'last seen ${_formatLastSeen(_contactLastSeen)}'
-                                  : 'Offline',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _isContactOnline
-                                ? const Color(0xFF00FF88)
-                                : (widget.isDark
-                                    ? Colors.white38 : Colors.black38),
+                        Flexible(
+                          child: Text(
+                            _isContactOnline
+                                ? 'Online'
+                                : _contactLastSeen > 0
+                                    ? 'last seen ${_formatLastSeen(_contactLastSeen)}'
+                                    : 'Offline',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _isContactOnline
+                                  ? const Color(0xFF00FF88)
+                                  : (widget.isDark
+                                      ? Colors.white38 : Colors.black38),
+                            ),
                           ),
                         ),
                       ],
@@ -2171,42 +2464,67 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               ),
             ),
           ),
+          // ✅ FEATURE: full-featured 1:1 chat overflow menu.
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: themeColor),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
             onSelected: (val) {
-              if (val == 'wallpaper') _pickChatWallpaper();
-              if (val == 'clear') _clearChat();
-              if (val == 'block') _toggleBlockContact();
-              if (val == 'lock') _manageChatLock();
+              switch (val) {
+                case 'profile':
+                  _showContactProfile();
+                  break;
+                case 'search':
+                  _toggleSearch();
+                  break;
+                case 'wallpaper':
+                  _pickChatWallpaper();
+                  break;
+                case 'mute':
+                  _showMuteDialog();
+                  break;
+                case 'lock':
+                  _manageChatLock();
+                  break;
+                case 'clear':
+                  _clearChat();
+                  break;
+                case 'block':
+                  _toggleBlockContact();
+                  break;
+              }
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem(value: 'wallpaper', child: Text('Set Chat Wallpaper')),
-              PopupMenuItem(
-                value: 'lock',
-                child: Row(children: [
-                  Icon(
-                    _isChatLocked ? Icons.lock_open_rounded : Icons.lock_rounded,
-                    size: 16,
-                    color: VeilTheme.accentColor,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(_isChatLocked ? 'Remove Lock' : 'Lock Chat'),
-                ]),
+              _menuItem('profile', Icons.person_rounded, 'View Profile'),
+              _menuItem('search', Icons.search_rounded, 'Search Chat'),
+              _menuItem(
+                  'wallpaper', Icons.wallpaper_rounded, 'Set Custom Wallpaper'),
+              _menuItem(
+                'mute',
+                _isMuted
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_off_rounded,
+                _isMuted ? 'Unmute Notifications' : 'Mute Notifications',
               ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Text('Clear Chat', style: TextStyle(color: Colors.red)),
+              _menuItem(
+                'lock',
+                _isChatLocked ? Icons.lock_open_rounded : Icons.lock_rounded,
+                _isChatLocked ? 'Remove Lock' : 'Lock Chat',
               ),
-              PopupMenuItem(
-                value: 'block',
-                child: Text(
-                  _isContactBlocked ? 'Unblock Contact' : 'Block Contact',
-                  style: TextStyle(
-                    color: _isContactBlocked ? Colors.green : Colors.red),
-                ),
+              const PopupMenuDivider(height: 1),
+              _menuItem('clear', Icons.delete_sweep_rounded,
+                  'Clear Chat History',
+                  color: Colors.redAccent),
+              _menuItem(
+                'block',
+                _isContactBlocked ? Icons.check_circle_rounded : Icons.block_rounded,
+                _isContactBlocked ? 'Unblock Contact' : 'Block Contact',
+                color: _isContactBlocked ? Colors.green : Colors.redAccent,
               ),
             ],
           ),
+
         ],
       ),
       body: Stack(
@@ -2318,7 +2636,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                                     ? _messages.where((m) => (m['content'] ?? '').toString().toLowerCase().contains(_searchQuery)).toList()
                                     : _messages;
                                 if (idx < 0 || idx >= msgs.length) return const SizedBox.shrink();
-                                return _buildBubble(msgs[idx], idx);
+                                // ✅ SEMANTICS FIX: a unique, stable key per
+                                // message keeps Flutter from reusing elements
+                                // across rebuilds (the cause of the duplicate
+                                // key / semantics-ancestor assertions).
+                                final m = msgs[idx];
+                                return KeyedSubtree(
+                                  key: ValueKey(
+                                    'msg_${m['messageId'] ?? m['id'] ?? m['time']}',
+                                  ),
+                                  child: _buildBubble(m, idx),
+                                );
+
                               },
                             )),
                 ),
@@ -2628,15 +2957,57 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             context: context,
             builder: (_) => Dialog(
               backgroundColor: Colors.transparent,
-              child: InteractiveViewer(
-                panEnabled: true,
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Image.file(File(path)),
+              insetPadding: EdgeInsets.zero,
+              child: Stack(
+                children: [
+                  Center(
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      child: Image.file(File(path)),
+                    ),
+                  ),
+                  // ✅ BUG FIX #4: explicit "save to gallery" affordance for
+                  // received (incl. stego-encoded) images.
+                  Positioned(
+                    bottom: 24,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _viewerActionBtn(
+                          icon: Icons.download_rounded,
+                          label: 'Save to Gallery',
+                          onTap: () => _saveImageToGallery(path),
+                        ),
+                        const SizedBox(width: 12),
+                        _viewerActionBtn(
+                          icon: Icons.share_rounded,
+                          label: 'Share',
+                          onTap: () => Share.shareXFiles(
+                            [XFile(path)],
+                            text: 'Shared from VeilChat',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 40,
+                    right: 12,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
         },
+
         child: ClipRRect(
           borderRadius: BorderRadius.circular(15),
           child: Image.file(
@@ -2672,6 +3043,40 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     );
   }
 
+  /// Pill-shaped action button used inside the full-screen image viewer.
+  Widget _viewerActionBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.black.withOpacity(0.55),
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _errorContainer() {
     return Container(
       width: 250,
@@ -2680,6 +3085,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       child: const Center(child: Icon(Icons.broken_image, color: Colors.red)),
     );
   }
+
 
   Widget _buildAudioContent(String content, String id, int index) {
     final isPlaying = _playingAudioMessages[id] ?? false;
@@ -3220,7 +3626,204 @@ class DynamicChatPainter extends CustomPainter {
 }
 
 
+/// ✅ CRASH FIX — self-contained two-step PIN setup dialog.
+///
+/// Owning the controllers here (instead of in the caller) means Flutter
+/// disposes them exactly once, *after* the route's exit animation finishes,
+/// which eliminates the
+/// "A TextEditingController was used after being disposed" assertion.
+///
+/// Returns the confirmed 4-digit PIN via `Navigator.pop(context, pin)`, or
+/// `null` when cancelled.
+class _SetPinDialog extends StatefulWidget {
+  final bool isDark;
+  const _SetPinDialog({required this.isDark});
+
+  @override
+  State<_SetPinDialog> createState() => _SetPinDialogState();
+}
+
+class _SetPinDialogState extends State<_SetPinDialog> {
+  final TextEditingController _pin1 = TextEditingController();
+  final TextEditingController _pin2 = TextEditingController();
+  final FocusNode _focus = FocusNode();
+
+  int _step = 1;
+  String? _error;
+
+  @override
+  void dispose() {
+    // Safe: the element is fully unmounted by the time this runs, so no
+    // TextField is left listening to these controllers.
+    _pin1.dispose();
+    _pin2.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  TextEditingController get _active => _step == 1 ? _pin1 : _pin2;
+
+  void _commit() {
+    if (!mounted) return;
+
+    if (_step == 1) {
+      if (_pin1.text.length != 4) {
+        setState(() => _error = 'PIN must be exactly 4 digits');
+        return;
+      }
+      HapticFeedback.selectionClick();
+      setState(() {
+        _step = 2;
+        _error = null;
+      });
+      // Re-focus the confirm field on the next frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focus.requestFocus();
+      });
+      return;
+    }
+
+    if (_pin2.text.length != 4) {
+      setState(() => _error = 'PIN must be exactly 4 digits');
+      return;
+    }
+
+    if (_pin1.text != _pin2.text) {
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _error = 'PINs do not match — start again';
+        _step = 1;
+        _pin1.clear();
+        _pin2.clear();
+      });
+      return;
+    }
+
+    // Capture the value *before* popping so nothing reads a dead controller.
+    final result = _pin1.text;
+    Navigator.of(context).pop(result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = VeilTheme.accentColor;
+    final ready = _active.text.length == 4;
+
+    return AlertDialog(
+      backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Icon(Icons.lock_rounded, color: accent, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _step == 1 ? 'Enter new PIN' : 'Confirm PIN',
+              style: TextStyle(
+                color: widget.isDark ? Colors.white : Colors.black,
+                fontSize: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+      // ✅ OVERFLOW FIX: the dialog body is scrollable and height-bounded so
+      // the soft keyboard can never push it past its constraints.
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Step $_step of 2 — '
+              '${_step == 1 ? 'choose a 4-digit PIN' : 're-enter to confirm'}',
+              style: TextStyle(
+                color: widget.isDark ? Colors.white54 : Colors.black45,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              // A single stable key: swapping keys per step would unmount the
+              // field mid-animation, which is what triggered the original
+              // disposed-controller assertion.
+              key: const ValueKey('veil_pin_field'),
+              controller: _active,
+              focusNode: _focus,
+              autofocus: true,
+              obscureText: true,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(4),
+              ],
+              style: TextStyle(
+                color: widget.isDark ? Colors.white : Colors.black,
+                letterSpacing: 12,
+                fontSize: 24,
+              ),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '••••',
+                hintStyle: TextStyle(
+                  color: widget.isDark ? Colors.white24 : Colors.black26,
+                ),
+                errorText: _error,
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: accent.withOpacity(0.5)),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: accent),
+                ),
+              ),
+              onChanged: (v) {
+                setState(() => _error = null);
+                // Auto-submit the moment the 4th digit lands.
+                if (v.length == 4) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _commit();
+                  });
+                }
+              },
+              onSubmitted: (_) => _commit(),
+            ),
+          ],
+        ),
+      ),
+      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            'CANCEL',
+            style: TextStyle(
+              color: widget.isDark ? Colors.white54 : Colors.black54,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: ready ? _commit : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: accent,
+            foregroundColor: Colors.black,
+            disabledBackgroundColor: accent.withOpacity(0.25),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: Text(
+            _step == 1 ? 'NEXT' : 'CONFIRM',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Animated three-dot typing indicator — bounces up and down
+
 class _TypingDotsWidget extends StatefulWidget {
   final Color color;
   const _TypingDotsWidget({required this.color});

@@ -68,20 +68,22 @@ class _LoginScreenState extends State<LoginScreen> {
           "Server Config",
           style: TextStyle(color: isDark ? Colors.white : Colors.black),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: ipCtrl,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black),
-              decoration: const InputDecoration(labelText: "Server IP"),
-            ),
-            TextField(
-              controller: portCtrl,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black),
-              decoration: const InputDecoration(labelText: "Port"),
-            ),
-          ],
+        content: SingleChildScrollView( // <-- Ye line add ki hai
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ipCtrl,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                decoration: const InputDecoration(labelText: "Server IP"),
+              ),
+              TextField(
+                controller: portCtrl,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                decoration: const InputDecoration(labelText: "Port"),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

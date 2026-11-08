@@ -49,7 +49,9 @@ class _ChatLockScreenState extends State<ChatLockScreen>
   bool _isUnlocked = false;
   bool _hasLock = false;
   bool _error = false;
+  bool _verifying = false;
   late AnimationController _shakeCtrl;
+
   late Animation<double> _shakeAnim;
 
   @override
@@ -82,6 +84,8 @@ class _ChatLockScreenState extends State<ChatLockScreen>
       _error = false;
     });
     HapticFeedback.lightImpact();
+    // Auto-submit on the last digit (onCompleted behaviour). The explicit
+    // ✓ button below is kept for users who expect a confirm affordance.
     if (_entered.length == 4) await _verify();
   }
 
@@ -91,19 +95,50 @@ class _ChatLockScreenState extends State<ChatLockScreen>
     HapticFeedback.lightImpact();
   }
 
-  Future<void> _verify() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(ChatLockScreen._prefKey(widget.contactName));
-    final hash = sha256.convert(utf8.encode(_entered)).toString();
-    if (hash == stored) {
-      HapticFeedback.mediumImpact();
-      setState(() => _isUnlocked = true);
-    } else {
-      HapticFeedback.vibrate();
-      setState(() { _error = true; _entered = ''; });
+  /// Explicit "OK / Done" action.
+  ///
+  /// ✅ FIX: there was previously no way to confirm a PIN other than typing the
+  /// 4th digit. An incomplete PIN now gives clear feedback instead of doing
+  /// nothing at all.
+  Future<void> _onSubmit() async {
+    if (_entered.length < 4) {
+      HapticFeedback.heavyImpact();
+      setState(() => _error = true);
       _shakeCtrl.forward(from: 0);
+      return;
+    }
+    await _verify();
+  }
+
+  Future<void> _verify() async {
+    if (_verifying) return;
+    _verifying = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored =
+          prefs.getString(ChatLockScreen._prefKey(widget.contactName));
+      final hash = sha256.convert(utf8.encode(_entered)).toString();
+      if (hash == stored) {
+        HapticFeedback.mediumImpact();
+        // Smooth fade into the chat rather than an abrupt swap.
+        if (mounted) setState(() => _isUnlocked = true);
+      } else {
+        HapticFeedback.heavyImpact();
+        if (mounted) setState(() { _error = true; _entered = ''; });
+        _shakeCtrl.forward(from: 0);
+      }
+    } catch (e) {
+      debugPrint('❌ PIN verify failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not verify PIN. Try again.')),
+        );
+      }
+    } finally {
+      _verifying = false;
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -204,9 +239,12 @@ class _ChatLockScreenState extends State<ChatLockScreen>
                   children: [
                     ...['1','2','3','4','5','6','7','8','9'].map((d) =>
                       _digitBtn(d, themeColor)),
-                    const SizedBox.shrink(),
-                    _digitBtn('0', themeColor),
                     _deleteBtn(themeColor),
+                    _digitBtn('0', themeColor),
+                    // ✅ FIX: explicit confirm button — the pad previously had
+                    // an empty cell here and no way to submit.
+                    _submitBtn(themeColor),
+
                   ],
                 ),
               ),
@@ -238,7 +276,53 @@ class _ChatLockScreenState extends State<ChatLockScreen>
     );
   }
 
+  /// Confirm / OK key. Enabled state is reflected visually so the user knows
+  /// when the PIN is ready to submit.
+  Widget _submitBtn(Color color) {
+    final ready = _entered.length == 4;
+    return GestureDetector(
+      onTap: _onSubmit,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          gradient: ready
+              ? LinearGradient(
+                  colors: [color, color.withOpacity(0.65)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: ready ? null : color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: ready ? color : color.withOpacity(0.18),
+          ),
+          boxShadow: ready
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.35),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Center(
+          child: Icon(
+            Icons.check_rounded,
+            size: 24,
+            color: ready
+                ? Colors.black
+                : (widget.isDark ? Colors.white24 : Colors.black26),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _deleteBtn(Color color) {
+
     return GestureDetector(
       onTap: _onDelete,
       child: Container(

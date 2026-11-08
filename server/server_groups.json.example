@@ -1,0 +1,12 @@
+{
+  "grp_example_001": {
+    "id": "grp_example_001",
+    "name": "General Discussion",
+    "owner": "alice",
+    "members": [
+      "alice",
+      "bob"
+    ],
+    "created_at": 1700000000000
+  }
+}

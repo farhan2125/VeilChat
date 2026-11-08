@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "912509320307",
-    "project_id": "veilchat-9c685",
-    "storage_bucket": "veilchat-9c685.firebasestorage.app"
+    "project_number": "000000000000",
+    "project_id": "your-firebase-project-id",
+    "storage_bucket": "your-firebase-project-id.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:912509320307:android:246e9884accc611755be06",
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
         "android_client_info": {
           "package_name": "com.example.veilchat_new"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDQGf5TYYoIsF6lN7DTCy-gu-Qv9cw2LDA"
+          "current_key": "YOUR_FIREBASE_API_KEY_HERE"
         }
       ],
       "services": {

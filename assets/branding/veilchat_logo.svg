@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="VeilChat logo">
+  <defs>
+    <linearGradient id="veilSweep" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="55%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#2DD4BF"/>
+    </linearGradient>
+
+    <linearGradient id="veilShield" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#2DD4BF"/>
+    </linearGradient>
+
+    <radialGradient id="veilGlow" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#6366F1" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="veilBlur" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient glow behind the mark -->
+  <circle cx="256" cy="238" r="190" fill="url(#veilGlow)"/>
+
+  <!-- ── The Veil: a shield silhouette that doubles as a speech bubble ── -->
+  <!-- Outer shield / veil -->
+  <path
+    d="M256 54
+       L406 112
+       C406 112 410 268 384 330
+       C358 392 300 428 256 448
+       C212 428 154 392 128 330
+       C102 268 106 112 106 112
+       Z"
+    fill="none"
+    stroke="url(#veilShield)"
+    stroke-width="18"
+    stroke-linejoin="round"/>
+
+  <!-- Speech-bubble tail merged into the shield point -->
+  <path
+    d="M232 430 L256 470 L280 430 Z"
+    fill="url(#veilShield)"/>
+
+  <!-- Veil drape: two sweeping arcs suggesting a curtain / stealth layer -->
+  <path
+    d="M136 178 C196 214 316 214 376 178"
+    fill="none"
+    stroke="url(#veilSweep)"
+    stroke-width="12"
+    stroke-linecap="round"
+    opacity="0.75"/>
+  <path
+    d="M144 226 C200 258 312 258 368 226"
+    fill="none"
+    stroke="url(#veilSweep)"
+    stroke-width="9"
+    stroke-linecap="round"
+    opacity="0.45"/>
+
+  <!-- ── Encrypted lock node at the heart of the veil ── -->
+  <!-- Lock shackle -->
+  <path
+    d="M222 288 L222 266 C222 247 237 232 256 232 C275 232 290 247 290 266 L290 288"
+    fill="none"
+    stroke="url(#veilSweep)"
+    stroke-width="16"
+    stroke-linecap="round"/>
+
+  <!-- Lock body -->
+  <rect x="206" y="288" width="100" height="82" rx="20"
+        fill="url(#veilSweep)"/>
+
+  <!-- Keyhole = a tiny speech dot, tying "chat" into "lock" -->
+  <circle cx="256" cy="320" r="11" fill="#05070F"/>
+  <rect x="250" y="326" width="12" height="24" rx="6" fill="#05070F"/>
+
+  <!-- ── Crypto nodes: three points orbiting the lock (E2EE mesh) ── -->
+  <circle cx="150" cy="300" r="9" fill="#2DD4BF"/>
+  <circle cx="362" cy="300" r="9" fill="#6366F1"/>
+  <circle cx="256" cy="150" r="9" fill="#22D3EE"/>
+
+  <path d="M150 300 L206 320" stroke="#2DD4BF" stroke-width="4" opacity="0.5"/>
+  <path d="M362 300 L306 320" stroke="#6366F1" stroke-width="4" opacity="0.5"/>
+  <path d="M256 150 L256 232" stroke="#22D3EE" stroke-width="4" opacity="0.4"/>
+</svg>

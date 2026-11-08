@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" width="720" height="180" role="img" aria-label="VeilChat wordmark">
+  <defs>
+    <linearGradient id="wmSweep" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="55%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <linearGradient id="wmShield" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#2DD4BF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Compact mark (shield + lock) -->
+  <g transform="translate(10,14) scale(0.29)">
+    <path
+      d="M256 54 L406 112 C406 112 410 268 384 330 C358 392 300 428 256 448
+         C212 428 154 392 128 330 C102 268 106 112 106 112 Z"
+      fill="none" stroke="url(#wmShield)" stroke-width="22" stroke-linejoin="round"/>
+    <path d="M136 178 C196 214 316 214 376 178"
+          fill="none" stroke="url(#wmSweep)" stroke-width="14" stroke-linecap="round" opacity="0.75"/>
+    <path d="M222 288 L222 266 C222 247 237 232 256 232 C275 232 290 247 290 266 L290 288"
+          fill="none" stroke="url(#wmSweep)" stroke-width="18" stroke-linecap="round"/>
+    <rect x="206" y="288" width="100" height="82" rx="20" fill="url(#wmSweep)"/>
+    <circle cx="256" cy="320" r="11" fill="#05070F"/>
+    <rect x="250" y="326" width="12" height="24" rx="6" fill="#05070F"/>
+  </g>
+
+  <!-- Wordmark: "Veil" light weight, "Chat" bold — the veil lifts to reveal chat -->
+  <text x="185" y="115"
+        font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif"
+        font-size="82" letter-spacing="-2">
+    <tspan fill="#E4EAFB" font-weight="300">Veil</tspan><tspan fill="url(#wmSweep)" font-weight="800">Chat</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="189" y="150"
+        font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif"
+        font-size="17" letter-spacing="6" font-weight="600"
+        fill="#2DD4BF" opacity="0.75">END-TO-END ENCRYPTED</text>
+</svg>

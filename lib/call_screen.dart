@@ -497,18 +497,27 @@ class _CallScreenState extends State<CallScreen>
         style: const TextStyle(
             fontSize: 48, color: Colors.white, fontWeight: FontWeight.bold))));
 
+  // ✅ BUG FIX #1: SafeArea + horizontal margin keeps the toolbar clear of
+  // gesture-navigation insets and rounded display corners.
   Widget _buildControls() => Positioned(
-    bottom: 48, left: 20, right: 20,
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      if (_wasConnected)
-        Text(_callStatus,
-          style: const TextStyle(color: Colors.greenAccent, fontSize: 13)),
-      const SizedBox(height: 16),
-      if (widget.isIncoming && !_wasConnected)
-        _buildIncomingActions()
-      else
-        _buildActiveActions(),
-    ]));
+    bottom: 0, left: 0, right: 0,
+    child: SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          if (_wasConnected)
+            Text(_callStatus,
+              style: const TextStyle(color: Colors.greenAccent, fontSize: 13)),
+          const SizedBox(height: 16),
+          if (widget.isIncoming && !_wasConnected)
+            _buildIncomingActions()
+          else
+            _buildActiveActions(),
+        ]),
+      ),
+    ));
 
   Widget _buildIncomingActions() => Row(
     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -527,36 +536,96 @@ class _CallScreenState extends State<CallScreen>
       ]),
     ]);
 
-  Widget _buildActiveActions() => Container(
-    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-    decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.08),
-      borderRadius: BorderRadius.circular(32),
-      border: Border.all(color: Colors.white12)),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _circleBtn(
-          _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-          _isMuted ? Colors.redAccent : Colors.white,
-          _toggleMute),
-        _circleBtn(
-          _isSpeakerOn ? Icons.volume_up_rounded : Icons.phone_in_talk_rounded,
-          _isSpeakerOn ? VeilTheme.accentColor : Colors.white,
-          _toggleSpeaker),
-        _circleBtn(Icons.call_end_rounded, Colors.red,
-          () => _handleEndCall()),
-        if (!widget.isAudioOnly) ...[
-          _circleBtn(
-            _isCameraOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
-            _isCameraOff ? Colors.redAccent : Colors.white,
-            _toggleCamera),
-          _circleBtn(Icons.cameraswitch_rounded, Colors.white,
-            _switchCamera),
-        ],
-      ]));
+  /// ✅ BUG FIX #1: "RIGHT OVERFLOWED BY 2.0 PIXELS".
+  ///
+  /// Video calls render 5 control buttons. At the previous fixed sizing
+  /// (14px padding + 28px icon = 56px each) that is 280px of buttons plus
+  /// 40px of container padding — 2px wider than the available width on
+  /// common 360dp devices.
+  ///
+  /// The fix is threefold:
+  ///   1. `FittedBox(fit: BoxFit.scaleDown)` — buttons shrink proportionally
+  ///      instead of overflowing on narrow screens, and stay at natural size
+  ///      on wide ones.
+  ///   2. `MainAxisSize.min` + `spaceEvenly` — the row claims only the space
+  ///      it needs and distributes the remainder evenly.
+  ///   3. Slightly tighter padding/icon sizing in video mode where there are
+  ///      more buttons to fit.
+  Widget _buildActiveActions() {
+    final bool isVideo = !widget.isAudioOnly;
+    // Tighter metrics when 5 buttons must share the row.
+    final double iconSize = isVideo ? 24 : 28;
+    final double btnPadding = isVideo ? 11 : 14;
 
-  Widget _circleBtn(IconData icon, Color color, VoidCallback onTap) =>
+    return Container(
+      padding: EdgeInsets.symmetric(
+        vertical: 14,
+        horizontal: isVideo ? 10 : 20,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _circleBtn(
+              _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+              _isMuted ? Colors.redAccent : Colors.white,
+              _toggleMute,
+              iconSize: iconSize,
+              padding: btnPadding),
+            SizedBox(width: isVideo ? 6 : 10),
+            _circleBtn(
+              _isSpeakerOn
+                  ? Icons.volume_up_rounded
+                  : Icons.phone_in_talk_rounded,
+              _isSpeakerOn ? VeilTheme.accentColor : Colors.white,
+              _toggleSpeaker,
+              iconSize: iconSize,
+              padding: btnPadding),
+            SizedBox(width: isVideo ? 6 : 10),
+            _circleBtn(
+              Icons.call_end_rounded,
+              Colors.red,
+              () => _handleEndCall(),
+              iconSize: iconSize,
+              padding: btnPadding),
+            if (isVideo) ...[
+              const SizedBox(width: 6),
+              _circleBtn(
+                _isCameraOff
+                    ? Icons.videocam_off_rounded
+                    : Icons.videocam_rounded,
+                _isCameraOff ? Colors.redAccent : Colors.white,
+                _toggleCamera,
+                iconSize: iconSize,
+                padding: btnPadding),
+              const SizedBox(width: 6),
+              _circleBtn(
+                Icons.cameraswitch_rounded,
+                Colors.white,
+                _switchCamera,
+                iconSize: iconSize,
+                padding: btnPadding),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _circleBtn(
+    IconData icon,
+    Color color,
+    VoidCallback onTap, {
+    double iconSize = 28,
+    double padding = 14,
+  }) =>
     Material(
       color: color.withOpacity(0.15),
       shape: const CircleBorder(),
@@ -564,8 +633,9 @@ class _CallScreenState extends State<CallScreen>
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Icon(icon, color: color, size: 28))));
+          padding: EdgeInsets.all(padding),
+          child: Icon(icon, color: color, size: iconSize))));
+
 
   Widget _pulseButton(IconData icon, Color color, VoidCallback onTap) =>
     ScaleTransition(
