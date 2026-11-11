@@ -33,24 +33,36 @@ class MyApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: Colors.transparent,
-        pageTransitionsTheme: const PageTransitionsTheme(builders: {
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-        }),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
       routes: {
         '/': (context) => const LoginScreen(),
         '/main': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-          return MainScreen(isDarkInitial: args['isDark'] ?? true, sharedKey: args['sharedKey'] ?? '', username: args['username'] ?? '');
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
+          return MainScreen(
+            isDarkInitial: args['isDark'] ?? true,
+            sharedKey: args['sharedKey'] ?? '',
+            username: args['username'] ?? '',
+          );
         },
         '/chat': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
           return FutureBuilder<String?>(
             future: secureStorage.read(key: 'veilchat_shared_key'),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting)
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
               return ChatDetailScreen(
                 contactName: args['contactName'] as String,
                 isDark: args['isDark'] as bool? ?? true,
@@ -61,12 +73,16 @@ class MyApp extends StatelessWidget {
           );
         },
         '/group': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
           return FutureBuilder<String?>(
             future: secureStorage.read(key: 'veilchat_shared_key'),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting)
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
               return GroupChatDetailScreen(
                 groupId: args['groupId'] as String,
                 groupName: args['groupName'] as String,

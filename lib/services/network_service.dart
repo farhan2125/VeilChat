@@ -1,10 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:path_provider/path_provider.dart';
 import 'database_service.dart';
 
 class NetworkService {
@@ -26,17 +23,22 @@ class NetworkService {
   String? _lastPassword;
   bool _manualDisconnect = false;
   bool _isDisconnecting = false; // guard against double-call
-  final _secureStorage = const FlutterSecureStorage();
+  bool _useTls = false;
+  bool _allowSelfSigned = true;
+  SecurityContext? _securityContext;
 
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
-  final _userListController = StreamController<Map<String, dynamic>>.broadcast();
+  final _userListController =
+      StreamController<Map<String, dynamic>>.broadcast();
   final _callController = StreamController<Map<String, dynamic>>.broadcast();
-  final _fileTransferController = StreamController<Map<String, dynamic>>.broadcast();
+  final _fileTransferController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
   Stream<Map<String, dynamic>> get userListStream => _userListController.stream;
   Stream<Map<String, dynamic>> get callStream => _callController.stream;
-  Stream<Map<String, dynamic>> get fileTransferStream => _fileTransferController.stream;
+  Stream<Map<String, dynamic>> get fileTransferStream =>
+      _fileTransferController.stream;
 
   Completer<Map<String, dynamic>>? _authCompleter;
   int _bytesSent = 0;
@@ -53,13 +55,35 @@ class NetworkService {
     String password,
     bool isRegister, {
     bool allowSelfSigned = true,
+    bool useTls = false,
+    SecurityContext? securityContext,
   }) async {
     try {
       if (_socket != null) disconnect();
 
-      debugPrint("🔌 Connecting to TCP server $ip:$port...");
+      _useTls = useTls;
+      _allowSelfSigned = allowSelfSigned;
+      _securityContext = securityContext;
 
-      _socket = await Socket.connect(ip, port, timeout: const Duration(seconds: 10));
+      debugPrint(
+        "🔌 Connecting to ${useTls ? 'TLS' : 'TCP'} server $ip:$port...",
+      );
+
+      if (useTls) {
+        _socket = await SecureSocket.connect(
+          ip,
+          port,
+          context: securityContext,
+          onBadCertificate: allowSelfSigned ? (cert) => true : null,
+          timeout: const Duration(seconds: 10),
+        );
+      } else {
+        _socket = await Socket.connect(
+          ip,
+          port,
+          timeout: const Duration(seconds: 10),
+        );
+      }
       _isConnected = true;
       _currentUser = username;
       // Store for auto-reconnect
@@ -76,24 +100,23 @@ class NetworkService {
       _bytesReceived = 0;
       _connectionTime = DateTime.now();
 
-      _sendPacket(
-        isRegister ? "REGISTER" : "LOGIN",
-        {
-          "username": username,
-          "password": password,
-          "device": Platform.isAndroid
-              ? "Android"
-              : Platform.isIOS
-                  ? "iOS"
-                  : "Desktop",
-          "version": "1.0.0",
+      _sendPacket(isRegister ? "REGISTER" : "LOGIN", {
+        "username": username,
+        "password": password,
+        "device": Platform.isAndroid
+            ? "Android"
+            : Platform.isIOS
+            ? "iOS"
+            : "Desktop",
+        "version": "1.0.0",
+      });
+
+      final response = await _authCompleter!.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          return {"status": "FAIL", "msg": "Authentication timeout"};
         },
       );
-
-      final response = await _authCompleter!.future
-          .timeout(const Duration(seconds: 10), onTimeout: () {
-        return {"status": "FAIL", "msg": "Authentication timeout"};
-      });
 
       if (response['status'] == 'SUCCESS') {
         _isConnected = true;
@@ -136,7 +159,7 @@ class NetworkService {
         ...payload,
       ];
       _socket!.add(packet);
-      
+
       _bytesSent += packet.length;
     } on SocketException catch (e) {
       debugPrint("📤 SocketException in send: $e");
@@ -145,7 +168,8 @@ class NetworkService {
     }
   }
 
-  void sendPacket(String type, Map<String, dynamic> jsonMap) => _sendPacket(type, jsonMap);
+  void sendPacket(String type, Map<String, dynamic> jsonMap) =>
+      _sendPacket(type, jsonMap);
 
   void _listen() {
     final buffer = <int>[];
@@ -156,7 +180,8 @@ class NetworkService {
           _bytesReceived += data.length;
           while (buffer.length >= 20) {
             final type = utf8.decode(buffer.sublist(0, 10)).trim();
-            final len = int.tryParse(utf8.decode(buffer.sublist(10, 20)).trim()) ?? 0;
+            final len =
+                int.tryParse(utf8.decode(buffer.sublist(10, 20)).trim()) ?? 0;
             if (len <= 0 || buffer.length < 20 + len) break;
             final jsonStr = utf8.decode(buffer.sublist(20, 20 + len));
             buffer.removeRange(0, 20 + len);
@@ -178,16 +203,20 @@ class NetworkService {
         _isConnected = false;
         _socket = null;
         _pingTimer?.cancel();
-        if (!_manualDisconnect) _scheduleReconnect();
-        else disconnect();
+        if (!_manualDisconnect)
+          _scheduleReconnect();
+        else
+          disconnect();
       },
       onError: (e) {
         debugPrint("❌ Socket error: $e");
         _isConnected = false;
         _socket = null;
         _pingTimer?.cancel();
-        if (!_manualDisconnect) _scheduleReconnect();
-        else disconnect();
+        if (!_manualDisconnect)
+          _scheduleReconnect();
+        else
+          disconnect();
       },
       cancelOnError: true,
     );
@@ -291,7 +320,7 @@ class NetworkService {
     _sendPacket(type, packet);
 
     // 🔥 NOTE: Sender side ki Database saving ab chat_detail_screen mein hoti hai
-    // taake "local file path" easily track kiya ja sake. Double saving se bachne ke liye 
+    // taake "local file path" easily track kiya ja sake. Double saving se bachne ke liye
     // yahan se saveMessage nikal diya gaya hai.
   }
 
@@ -310,7 +339,12 @@ class NetworkService {
     sendCallSignal(toUser, 'ICE', candidate);
   }
 
-  void sendFileProgress(String toUser, String fileId, int bytesTransferred, int totalBytes) {
+  void sendFileProgress(
+    String toUser,
+    String fileId,
+    int bytesTransferred,
+    int totalBytes,
+  ) {
     if (_socket == null || _currentUser == null || !_isConnected) return;
     _sendPacket("FILE_PROGRESS", {
       "to_user": toUser,
@@ -346,14 +380,15 @@ class NetworkService {
     }
   }
 
-
   void _startPingTimer() {
     _pingTimer?.cancel();
     // Send PING every 30 seconds to keep connection alive
     _pingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_socket != null && _isConnected) {
         try {
-          _sendPacket('PING', {'timestamp': DateTime.now().millisecondsSinceEpoch});
+          _sendPacket('PING', {
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          });
         } catch (e) {
           debugPrint('Ping failed: $e');
         }
@@ -361,10 +396,12 @@ class NetworkService {
     });
   }
 
-
   void _scheduleReconnect() {
     if (_manualDisconnect) return;
-    if (_lastIp == null || _lastPort == null || _currentUser == null || _lastPassword == null) {
+    if (_lastIp == null ||
+        _lastPort == null ||
+        _currentUser == null ||
+        _lastPassword == null) {
       debugPrint('🔄 No credentials stored — cannot reconnect');
       return;
     }
@@ -387,7 +424,9 @@ class NetworkService {
         ? (2 * _reconnectAttempts).clamp(2, 30)
         : 30;
 
-    debugPrint('🔄 Reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)...');
+    debugPrint(
+      '🔄 Reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)...',
+    );
 
     // Notify UI so it can show "Reconnecting..." banner
     if (!_messageController.isClosed) {
@@ -404,10 +443,21 @@ class NetworkService {
       if (_manualDisconnect || _isConnected) return;
       debugPrint('🔄 Attempting reconnect...');
       try {
-        _socket = await Socket.connect(
-          _lastIp!, _lastPort!,
-          timeout: const Duration(seconds: 10),
-        );
+        if (_useTls) {
+          _socket = await SecureSocket.connect(
+            _lastIp!,
+            _lastPort!,
+            context: _securityContext,
+            onBadCertificate: _allowSelfSigned ? (cert) => true : null,
+            timeout: const Duration(seconds: 10),
+          );
+        } else {
+          _socket = await Socket.connect(
+            _lastIp!,
+            _lastPort!,
+            timeout: const Duration(seconds: 10),
+          );
+        }
         _isConnected = true;
         _listen();
         _authCompleter = Completer<Map<String, dynamic>>();
@@ -419,10 +469,12 @@ class NetworkService {
           'version': '1.0.0',
         });
 
-        final response = await _authCompleter!.future
-            .timeout(const Duration(seconds: 10), onTimeout: () {
-          return {'status': 'FAIL', 'msg': 'Auth timeout'};
-        });
+        final response = await _authCompleter!.future.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            return {'status': 'FAIL', 'msg': 'Auth timeout'};
+          },
+        );
 
         if (response['status'] == 'SUCCESS') {
           _reconnectAttempts = 0;
@@ -447,7 +499,9 @@ class NetworkService {
       } catch (e) {
         debugPrint('❌ Reconnect failed: $e');
         _isConnected = false;
-        try { _socket?.destroy(); } catch (_) {}
+        try {
+          _socket?.destroy();
+        } catch (_) {}
         _socket = null;
         _scheduleReconnect();
       }
@@ -477,6 +531,9 @@ class NetworkService {
 
     _socket = null;
     _currentUser = null;
+    _lastPassword = null;
+    _lastIp = null;
+    _lastPort = null;
     _connectionTime = null;
     _isDisconnecting = false; // allow future reconnects
 
@@ -500,7 +557,7 @@ class NetworkService {
       "profile": profileData,
       "timestamp": DateTime.now().millisecondsSinceEpoch,
     });
-    
+
     debugPrint("📤 Sent PROFILE_UPDATE to server");
   }
 

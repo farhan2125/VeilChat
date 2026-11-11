@@ -308,7 +308,8 @@ class FileTransferService {
   void cleanOldTransfers({Duration age = const Duration(hours: 1)}) {
     final cutoff = DateTime.now().subtract(age);
     _transfers.removeWhere((id, transfer) {
-      if (transfer.completedAt != null && transfer.completedAt!.isBefore(cutoff)) {
+      if (transfer.completedAt != null &&
+          transfer.completedAt!.isBefore(cutoff)) {
         return true;
       }
       return false;
@@ -328,17 +329,31 @@ class FileTransferService {
   String _getMimeType(String fileName) {
     final ext = fileName.split('.').last.toLowerCase();
     switch (ext) {
-      case 'jpg': case 'jpeg': return 'image/jpeg';
-      case 'png': return 'image/png';
-      case 'gif': return 'image/gif';
-      case 'mp4': return 'video/mp4';
-      case 'mp3': return 'audio/mpeg';
-      case 'm4a': return 'audio/mp4';
-      case 'pdf': return 'application/pdf';
-      case 'doc': case 'docx': return 'application/msword';
-      case 'xls': case 'xlsx': return 'application/vnd.ms-excel';
-      case 'zip': return 'application/zip';
-      default: return 'application/octet-stream';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'm4a':
+        return 'audio/mp4';
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+      case 'docx':
+        return 'application/msword';
+      case 'xls':
+      case 'xlsx':
+        return 'application/vnd.ms-excel';
+      case 'zip':
+        return 'application/zip';
+      default:
+        return 'application/octet-stream';
     }
   }
 

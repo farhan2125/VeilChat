@@ -14,7 +14,7 @@ class MediaService {
     try {
       var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/upload'));
       request.files.add(await http.MultipartFile.fromPath('file', file.path));
-      
+
       var response = await request.send();
       if (response.statusCode == 200) {
         var responseData = await response.stream.bytesToString();
@@ -27,25 +27,34 @@ class MediaService {
     return null;
   }
 
-  static Future<File?> downloadEncryptedFile(String filename, String savePath) async {
+  static Future<File?> downloadEncryptedFile(
+    String filename,
+    String savePath,
+  ) async {
     try {
       // Use a client with longer timeout for large files
       final client = http.Client();
       try {
-        final request = http.Request('GET', Uri.parse('$baseUrl/download/$filename'));
-        final streamedResponse = await client.send(request)
+        final request = http.Request(
+          'GET',
+          Uri.parse('$baseUrl/download/$filename'),
+        );
+        final streamedResponse = await client
+            .send(request)
             .timeout(const Duration(seconds: 60));
 
         if (streamedResponse.statusCode == 200) {
-          final bytes = await streamedResponse.stream
-              .toBytes()
-              .timeout(const Duration(seconds: 120));
+          final bytes = await streamedResponse.stream.toBytes().timeout(
+            const Duration(seconds: 120),
+          );
           final file = File(savePath);
           await file.writeAsBytes(bytes);
           debugPrint("✅ Download complete: ${bytes.length} bytes");
           return file;
         } else {
-          debugPrint("❌ Download failed with status ${streamedResponse.statusCode}");
+          debugPrint(
+            "❌ Download failed with status ${streamedResponse.statusCode}",
+          );
         }
       } finally {
         client.close();

@@ -5,7 +5,8 @@ import 'network_service.dart';
 
 typedef StreamStateCallback = void Function(MediaStream stream);
 typedef IceConnectionStateCallback = void Function(RTCIceConnectionState state);
-typedef SendIceCandidateCallback = void Function(RTCIceCandidate candidate, String contactName);
+typedef SendIceCandidateCallback =
+    void Function(RTCIceCandidate candidate, String contactName);
 
 class WebRTCService {
   // ✅ BUG FIX #1: REMOVED singleton pattern.
@@ -152,17 +153,21 @@ class WebRTCService {
 
   Future<void> setRemoteDescription(String sdp, String type) async {
     if (_disposed || _peerConnection == null) return;
-    await _peerConnection!.setRemoteDescription(RTCSessionDescription(sdp, type));
+    await _peerConnection!.setRemoteDescription(
+      RTCSessionDescription(sdp, type),
+    );
   }
 
   Future<void> addCandidate(Map<String, dynamic> candidateMap) async {
     if (_disposed || _peerConnection == null) return;
     try {
-      await _peerConnection!.addCandidate(RTCIceCandidate(
-        candidateMap['candidate'],
-        candidateMap['sdpMid'],
-        candidateMap['sdpMLineIndex'],
-      ));
+      await _peerConnection!.addCandidate(
+        RTCIceCandidate(
+          candidateMap['candidate'],
+          candidateMap['sdpMid'],
+          candidateMap['sdpMLineIndex'],
+        ),
+      );
     } catch (e) {
       debugPrint('❌ addCandidate error: $e');
     }
@@ -205,7 +210,6 @@ class WebRTCService {
     try {
       _localStream?.getTracks().forEach((t) {
         t.stop();
-        t.dispose();
       });
       _localStream?.dispose();
       _localStream = null;

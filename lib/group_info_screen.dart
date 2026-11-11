@@ -79,12 +79,16 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   bool get _dark => widget.isDark;
   Color get _text => _dark ? Colors.white : const Color(0xFF0F172A);
   Color get _subtext => _dark ? Colors.white54 : Colors.black54;
-  Color get _surface =>
-      (_dark ? Colors.white : Colors.black).withOpacity(_dark ? 0.05 : 0.035);
+  Color get _surface => (_dark ? Colors.white : Colors.black).withValues(
+    alpha: _dark ? 0.05 : 0.035,
+  );
 
   // ───────────────────────────── helpers ─────────────────────────────
 
-  Future<T?> _guard<T>(Future<T> Function() action, {String? failureMessage}) async {
+  Future<T?> _guard<T>(
+    Future<T> Function() action, {
+    String? failureMessage,
+  }) async {
     if (_busy) return null;
     setState(() => _busy = true);
     try {
@@ -112,7 +116,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     final color = danger ?? const Color(0xFFEF4444);
     final result = await showDialog<bool>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -124,9 +128,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: (_dark ? const Color(0xFF0D1117) : Colors.white)
-                    .withOpacity(0.92),
+                    .withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: color.withOpacity(0.28)),
+                border: Border.all(color: color.withValues(alpha: 0.28)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -136,66 +140,85 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     height: 52,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: color.withOpacity(0.15),
-                      border: Border.all(color: color.withOpacity(0.4)),
+                      color: color.withValues(alpha: 0.15),
+                      border: Border.all(color: color.withValues(alpha: 0.4)),
                     ),
                     child: Icon(icon, color: color, size: 26),
                   ),
                   const SizedBox(height: 14),
-                  Text(title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: _text)),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: _text,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(message,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: _subtext, height: 1.4)),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _subtext,
+                      height: 1.4,
+                    ),
+                  ),
                   const SizedBox(height: 22),
-                  Row(children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: BorderSide(
-                                color: _dark ? Colors.white24 : Colors.black12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
+                                color: _dark ? Colors.white24 : Colors.black12,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            'CANCEL',
+                            style: TextStyle(
+                              color: _subtext,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              letterSpacing: 0.6,
+                            ),
                           ),
                         ),
-                        child: Text('CANCEL',
-                            style: TextStyle(
-                                color: _subtext,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                                letterSpacing: 0.6)),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          backgroundColor: color,
-                          foregroundColor: Colors.white,
-                          elevation: 3,
-                          shadowColor: color.withOpacity(0.5),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: Text(confirmLabel.toUpperCase(),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            backgroundColor: color,
+                            foregroundColor: Colors.white,
+                            elevation: 3,
+                            shadowColor: color.withValues(alpha: 0.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: Text(
+                            confirmLabel.toUpperCase(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                letterSpacing: 0.6)),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ]),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -274,7 +297,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     final controller = TextEditingController();
     final username = await showDialog<String>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
@@ -286,9 +309,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: (_dark ? const Color(0xFF0D1117) : Colors.white)
-                    .withOpacity(0.93),
+                    .withValues(alpha: 0.93),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: _accent.withOpacity(0.28)),
+                border: Border.all(color: _accent.withValues(alpha: 0.28)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -299,17 +322,24 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                          colors: [_accent, _accent.withOpacity(0.55)]),
+                        colors: [_accent, _accent.withValues(alpha: 0.55)],
+                      ),
                     ),
-                    child: const Icon(Icons.person_add_alt_1_rounded,
-                        color: Colors.white, size: 24),
+                    child: const Icon(
+                      Icons.person_add_alt_1_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  Text('Add participant',
-                      style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: _text)),
+                  Text(
+                    'Add participant',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: _text,
+                    ),
+                  ),
                   const SizedBox(height: 18),
                   TextField(
                     controller: controller,
@@ -320,12 +350,17 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     decoration: InputDecoration(
                       hintText: 'Username',
                       hintStyle: TextStyle(color: _subtext),
-                      prefixIcon:
-                          Icon(Icons.alternate_email_rounded, color: _accent, size: 18),
+                      prefixIcon: Icon(
+                        Icons.alternate_email_rounded,
+                        color: _accent,
+                        size: 18,
+                      ),
                       filled: true,
                       fillColor: _surface,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -333,32 +368,41 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Row(children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text('CANCEL',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(
+                            'CANCEL',
                             style: TextStyle(
-                                color: _subtext, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.pop(ctx, controller.text.trim()),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _accent,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                              color: _subtext,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                        child: const Text('ADD',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
-                    ),
-                  ]),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              Navigator.pop(ctx, controller.text.trim()),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _accent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'ADD',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -369,7 +413,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
 
     if (username == null || username.isEmpty) return;
     if (group.members.contains(username)) {
-      if (mounted) VeilFeedback.warning(context, '$username is already a member');
+      if (mounted)
+        VeilFeedback.warning(context, '$username is already a member');
       return;
     }
 
@@ -403,7 +448,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     if (success == true) {
       VeilFeedback.success(context, 'You left "${group.name}"');
       Navigator.pop(context, 'left'); // info screen
-      Navigator.maybePop(context);    // chat screen
+      Navigator.maybePop(context); // chat screen
     } else {
       VeilFeedback.error(context, 'Could not leave the group');
     }
@@ -444,8 +489,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               label: e.key,
               onTap: () async {
                 Navigator.pop(ctx);
-                final until =
-                    e.value == null ? DateTime(2999) : DateTime.now().add(e.value!);
+                final until = e.value == null
+                    ? DateTime(2999)
+                    : DateTime.now().add(e.value!);
                 await _groups.setMuted(group.id, until);
                 if (mounted) {
                   VeilFeedback.success(context, 'Muted ${e.key.toLowerCase()}');
@@ -491,11 +537,16 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.perm_media_outlined,
-                                size: 44, color: _subtext),
+                            Icon(
+                              Icons.perm_media_outlined,
+                              size: 44,
+                              color: _subtext,
+                            ),
                             const SizedBox(height: 10),
-                            Text('No media shared yet',
-                                style: TextStyle(color: _subtext, fontSize: 13)),
+                            Text(
+                              'No media shared yet',
+                              style: TextStyle(color: _subtext, fontSize: 13),
+                            ),
                           ],
                         ),
                       )
@@ -504,10 +555,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         padding: const EdgeInsets.all(16),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 8,
-                          crossAxisSpacing: 8,
-                        ),
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                            ),
                         itemCount: media.length,
                         itemBuilder: (_, i) {
                           final m = media[i];
@@ -551,28 +602,32 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     try {
       final buffer = StringBuffer()
         ..writeln('VeilChat — ${group.name}')
-        ..writeln('Exported ${DateFormat.yMMMd().add_jm().format(DateTime.now())}')
+        ..writeln(
+          'Exported ${DateFormat.yMMMd().add_jm().format(DateTime.now())}',
+        )
         ..writeln('Participants: ${group.members.join(', ')}')
         ..writeln('${'─' * 46}');
 
       for (final m in rows) {
         final ts = DateTime.fromMillisecondsSinceEpoch(
-            (m['timestamp'] as num?)?.toInt() ?? 0);
+          (m['timestamp'] as num?)?.toInt() ?? 0,
+        );
         final type = m['type'] ?? 'TEXT';
-        final body = type == 'TEXT'
-            ? (m['content'] ?? '')
-            : '<$type>';
+        final body = type == 'TEXT' ? (m['content'] ?? '') : '<$type>';
         buffer.writeln(
-            '[${DateFormat('yyyy-MM-dd HH:mm').format(ts)}] ${m['sender']}: $body');
+          '[${DateFormat('yyyy-MM-dd HH:mm').format(ts)}] ${m['sender']}: $body',
+        );
       }
 
       final dir = await getTemporaryDirectory();
       final file = File(
-          '${dir.path}/veilchat_${group.name.replaceAll(RegExp(r'\W'), '_')}.txt');
+        '${dir.path}/veilchat_${group.name.replaceAll(RegExp(r'\W'), '_')}.txt',
+      );
       await file.writeAsString(buffer.toString());
 
-      await Share.shareXFiles([XFile(file.path)],
-          text: 'VeilChat export — ${group.name}');
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'VeilChat export — ${group.name}');
       if (mounted) VeilFeedback.success(context, 'Chat exported');
     } catch (e) {
       debugPrint('❌ Export failed: $e');
@@ -635,17 +690,23 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(Icons.lock_rounded, color: _accent, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Messages in this group are end-to-end encrypted with '
-                      'XChaCha20-Poly1305. Keys never leave your device.',
-                      style: TextStyle(color: _subtext, fontSize: 13, height: 1.5),
+                Row(
+                  children: [
+                    Icon(Icons.lock_rounded, color: _accent, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Messages in this group are end-to-end encrypted with '
+                        'XChaCha20-Poly1305. Keys never leave your device.',
+                        style: TextStyle(
+                          color: _subtext,
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 _kv('Cipher', 'XChaCha20-Poly1305'),
                 _kv('Key exchange', 'X25519'),
@@ -660,65 +721,82 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   }
 
   Widget _kv(String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 120,
-              child: Text(k,
-                  style: TextStyle(
-                      color: _subtext, fontSize: 12, fontWeight: FontWeight.w600)),
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            k,
+            style: TextStyle(
+              color: _subtext,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-            Expanded(
-              child: Text(v,
-                  style: TextStyle(
-                      color: _text, fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-          ],
+          ),
         ),
-      );
+        Expanded(
+          child: Text(
+            v,
+            style: TextStyle(
+              color: _text,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   // ───────────────────────────── sheet primitives ─────────────────────────────
 
   Widget _sheetShell({required Widget child}) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-          child: Container(
-            decoration: BoxDecoration(
-              color: (_dark ? const Color(0xFF0D1117) : Colors.white)
-                  .withOpacity(0.94),
-              border: Border(
-                  top: BorderSide(color: _accent.withOpacity(0.22), width: 1.2)),
-            ),
-            child: child,
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+      child: Container(
+        decoration: BoxDecoration(
+          color: (_dark ? const Color(0xFF0D1117) : Colors.white).withValues(
+            alpha: 0.94,
+          ),
+          border: Border(
+            top: BorderSide(color: _accent.withValues(alpha: 0.22), width: 1.2),
           ),
         ),
-      );
+        child: child,
+      ),
+    ),
+  );
 
   Widget _sheetHandle(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _subtext.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(title,
-                  style: TextStyle(
-                      color: _text, fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+    child: Column(
+      children: [
+        Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: _subtext.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
-      );
+        const SizedBox(height: 14),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            title,
+            style: TextStyle(
+              color: _text,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _sheet({required String title, required List<Widget> children}) =>
       SafeArea(
@@ -741,38 +819,43 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     required VoidCallback onTap,
     Color? color,
     bool selected = false,
-  }) =>
-      ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: (color ?? _accent).withOpacity(0.14),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color ?? _accent, size: 19),
-        ),
-        title: Text(label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                color: _text, fontSize: 14.5, fontWeight: FontWeight.w600)),
-        trailing: selected
-            ? Icon(Icons.check_circle_rounded, color: _accent, size: 20)
-            : null,
-      );
+  }) => ListTile(
+    onTap: onTap,
+    leading: Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: (color ?? _accent).withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: color ?? _accent, size: 19),
+    ),
+    title: Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: _text,
+        fontSize: 14.5,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    trailing: selected
+        ? Icon(Icons.check_circle_rounded, color: _accent, size: 20)
+        : null,
+  );
 
   // ───────────────────────────── build ─────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _dark ? const Color(0xFF05070D) : const Color(0xFFF6F8FF),
+      backgroundColor: _dark
+          ? const Color(0xFF05070D)
+          : const Color(0xFFF6F8FF),
       body: StreamBuilder<Group>(
         // ✅ Reactive: kick/promote/add instantly rebuild this screen.
-        stream: _groups.groupUpdateStream
-            .where((g) => g.id == widget.groupId),
+        stream: _groups.groupUpdateStream.where((g) => g.id == widget.groupId),
         builder: (context, snapshot) {
           final group = snapshot.data ?? _groups.getGroup(widget.groupId);
           if (group == null) {
@@ -782,8 +865,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 children: [
                   Icon(Icons.group_off_rounded, size: 46, color: _subtext),
                   const SizedBox(height: 12),
-                  Text('Group unavailable',
-                      style: TextStyle(color: _subtext, fontSize: 14)),
+                  Text(
+                    'Group unavailable',
+                    style: TextStyle(color: _subtext, fontSize: 14),
+                  ),
                 ],
               ),
             );
@@ -816,11 +901,14 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
           flexibleSpace: LayoutBuilder(
             builder: (context, constraints) {
               final collapsed =
-                  constraints.maxHeight <= kToolbarHeight + MediaQuery.of(context).padding.top + 12;
+                  constraints.maxHeight <=
+                  kToolbarHeight + MediaQuery.of(context).padding.top + 12;
               return FlexibleSpaceBar(
                 centerTitle: true,
-                titlePadding:
-                    const EdgeInsets.symmetric(horizontal: 56, vertical: 14),
+                titlePadding: const EdgeInsets.symmetric(
+                  horizontal: 56,
+                  vertical: 14,
+                ),
                 title: AnimatedOpacity(
                   duration: const Duration(milliseconds: 200),
                   opacity: collapsed ? 1 : 0,
@@ -829,7 +917,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        color: _text, fontSize: 16, fontWeight: FontWeight.bold),
+                      color: _text,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 background: _header(group),
@@ -848,27 +939,48 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         // ── Options list ─────────────────────────────────────────────
         SliverToBoxAdapter(
           child: _section('GROUP OPTIONS', [
-            _option(Icons.perm_media_rounded, 'Media, links & docs',
-                'Browse everything shared here', () => _openMediaGallery(group)),
             _option(
-                muted
-                    ? Icons.notifications_off_rounded
-                    : Icons.notifications_active_rounded,
-                'Mute notifications',
-                muted ? 'Currently muted' : 'Custom duration',
-                () => _muteSheet(group)),
-            _option(Icons.search_rounded, 'Search in group',
-                'Find messages fast', () {
-              Navigator.pop(context);
-              widget.onSearchRequested?.call();
-            }),
-            _option(Icons.ios_share_rounded, 'Export chat',
-                'Save a plain-text transcript', () => _exportChat(group)),
-            _option(Icons.wallpaper_rounded, 'Group wallpaper',
-                group.wallpaper ?? 'Default', () => _wallpaperSheet(group)),
-            _option(Icons.verified_user_rounded, 'Encryption',
-                'End-to-end encrypted', () => _showEncryptionInfo(group),
-                trailing: _encryptionChip()),
+              Icons.perm_media_rounded,
+              'Media, links & docs',
+              'Browse everything shared here',
+              () => _openMediaGallery(group),
+            ),
+            _option(
+              muted
+                  ? Icons.notifications_off_rounded
+                  : Icons.notifications_active_rounded,
+              'Mute notifications',
+              muted ? 'Currently muted' : 'Custom duration',
+              () => _muteSheet(group),
+            ),
+            _option(
+              Icons.search_rounded,
+              'Search in group',
+              'Find messages fast',
+              () {
+                Navigator.pop(context);
+                widget.onSearchRequested?.call();
+              },
+            ),
+            _option(
+              Icons.ios_share_rounded,
+              'Export chat',
+              'Save a plain-text transcript',
+              () => _exportChat(group),
+            ),
+            _option(
+              Icons.wallpaper_rounded,
+              'Group wallpaper',
+              group.wallpaper ?? 'Default',
+              () => _wallpaperSheet(group),
+            ),
+            _option(
+              Icons.verified_user_rounded,
+              'Encryption',
+              'End-to-end encrypted',
+              () => _showEncryptionInfo(group),
+              trailing: _encryptionChip(),
+            ),
           ]),
         ),
 
@@ -878,25 +990,33 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
             child: Row(
               children: [
-                Text('PARTICIPANTS',
-                    style: TextStyle(
-                        color: _subtext,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2)),
+                Text(
+                  'PARTICIPANTS',
+                  style: TextStyle(
+                    color: _subtext,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: _accent.withOpacity(0.14),
+                    color: _accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text('${group.members.length}',
-                      style: TextStyle(
-                          color: _accent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
+                  child: Text(
+                    '${group.members.length}',
+                    style: TextStyle(
+                      color: _accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -913,29 +1033,32 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   height: 44,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _accent.withOpacity(0.15),
-                    border: Border.all(color: _accent.withOpacity(0.4)),
+                    color: _accent.withValues(alpha: 0.15),
+                    border: Border.all(color: _accent.withValues(alpha: 0.4)),
                   ),
-                  child: Icon(Icons.person_add_alt_1_rounded,
-                      color: _accent, size: 20),
+                  child: Icon(
+                    Icons.person_add_alt_1_rounded,
+                    color: _accent,
+                    size: 20,
+                  ),
                 ),
-                title: Text('Add participant',
-                    style: TextStyle(
-                        color: _accent,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14.5)),
+                title: Text(
+                  'Add participant',
+                  style: TextStyle(
+                    color: _accent,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14.5,
+                  ),
+                ),
               ),
             ),
           ),
 
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final member = group.members[index];
-              return _memberTile(group, member, isAdmin);
-            },
-            childCount: group.members.length,
-          ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final member = group.members[index];
+            return _memberTile(group, member, isAdmin);
+          }, childCount: group.members.length),
         ),
 
         // ── Danger zone ──────────────────────────────────────────────
@@ -966,8 +1089,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                _accent.withOpacity(_dark ? 0.30 : 0.20),
-                VeilTheme.neonPurple.withOpacity(_dark ? 0.22 : 0.14),
+                _accent.withValues(alpha: _dark ? 0.30 : 0.20),
+                VeilTheme.neonPurple.withValues(alpha: _dark ? 0.22 : 0.14),
                 Colors.transparent,
               ],
             ),
@@ -992,10 +1115,11 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: _text,
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.2),
+                    color: _text,
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.2,
+                  ),
                 ),
                 const SizedBox(height: 5),
                 Text(
@@ -1046,13 +1170,18 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   shape: BoxShape.circle,
                   color: _surface,
                   border: Border.all(
-                      color: _dark ? Colors.white24 : Colors.black12, width: 2),
+                    color: _dark ? Colors.white24 : Colors.black12,
+                    width: 2,
+                  ),
                 ),
-                child: Text('+$overflow',
-                    style: TextStyle(
-                        color: _text,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  '+$overflow',
+                  style: TextStyle(
+                    color: _text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
         ],
@@ -1064,7 +1193,13 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     final isOwner = group.owner == member;
     final isAdmin = group.admins.contains(member);
     return Tooltip(
-      message: member + (isOwner ? ' · owner' : isAdmin ? ' · admin' : ''),
+      message:
+          member +
+          (isOwner
+              ? ' · owner'
+              : isAdmin
+              ? ' · admin'
+              : ''),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutBack,
@@ -1076,242 +1211,286 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
           gradient: LinearGradient(
             colors: isOwner
                 ? [_accent, VeilTheme.neonPurple]
-                : [_accent.withOpacity(0.7), _accent.withOpacity(0.35)],
+                : [
+                    _accent.withValues(alpha: 0.7),
+                    _accent.withValues(alpha: 0.35),
+                  ],
           ),
           border: Border.all(
-              color: _dark ? const Color(0xFF05070D) : Colors.white, width: 2.4),
+            color: _dark ? const Color(0xFF05070D) : Colors.white,
+            width: 2.4,
+          ),
           boxShadow: [
-            BoxShadow(color: _accent.withOpacity(0.28), blurRadius: 10),
+            BoxShadow(color: _accent.withValues(alpha: 0.28), blurRadius: 10),
           ],
         ),
         child: Text(
           member.isEmpty ? '?' : member[0].toUpperCase(),
           style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
         ),
       ),
     );
   }
 
   Widget _encryptionChip() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFF10B981).withOpacity(0.14),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.lock_rounded, size: 12, color: Color(0xFF10B981)),
-            SizedBox(width: 6),
-            Text('END-TO-END ENCRYPTED',
-                style: TextStyle(
-                    color: Color(0xFF10B981),
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.7)),
-          ],
-        ),
-      );
-
-  Widget _pinnedBanner(Group group) => Container(
-        margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: _accent.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _accent.withOpacity(0.25)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.push_pin_rounded, size: 16, color: _accent),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('PINNED',
-                      style: TextStyle(
-                          color: _accent,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1)),
-                  const SizedBox(height: 2),
-                  Text(group.pinnedMessage!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: _text, fontSize: 13)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _quickActions(Group group, bool muted) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-        child: Row(
-          children: [
-            _quick(Icons.perm_media_rounded, 'Media',
-                () => _openMediaGallery(group)),
-            _quick(Icons.search_rounded, 'Search', () {
-              Navigator.pop(context);
-              widget.onSearchRequested?.call();
-            }),
-            _quick(
-                muted
-                    ? Icons.notifications_off_rounded
-                    : Icons.notifications_active_rounded,
-                muted ? 'Muted' : 'Mute',
-                () => _muteSheet(group)),
-            _quick(Icons.wallpaper_rounded, 'Theme',
-                () => _wallpaperSheet(group), last: true),
-          ],
-        ),
-      );
-
-  Widget _quick(IconData icon, String label, VoidCallback onTap,
-          {bool last = false}) =>
-      Expanded(
-        child: Padding(
-          padding: EdgeInsets.only(right: last ? 0 : 10),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onTap();
-              },
-              borderRadius: BorderRadius.circular(18),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: _surface,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: _accent.withOpacity(0.16)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(_dark ? 0.28 : 0.05),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Icon(icon, color: _accent, size: 20),
-                    const SizedBox(height: 6),
-                    Text(label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: _subtext,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-            ),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: const Color(0xFF10B981).withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: const [
+        Icon(Icons.lock_rounded, size: 12, color: Color(0xFF10B981)),
+        SizedBox(width: 6),
+        Text(
+          'END-TO-END ENCRYPTED',
+          style: TextStyle(
+            color: Color(0xFF10B981),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.7,
           ),
         ),
-      );
+      ],
+    ),
+  );
 
-  Widget _section(String title, List<Widget> children) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
+  Widget _pinnedBanner(Group group) => Container(
+    margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: _accent.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _accent.withValues(alpha: 0.25)),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.push_pin_rounded, size: 16, color: _accent),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PINNED',
                 style: TextStyle(
-                    color: _subtext,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2)),
-            const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: _surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: (_dark ? Colors.white : Colors.black)
-                        .withOpacity(0.06)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(_dark ? 0.25 : 0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                  color: _accent,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
               ),
-              child: Column(children: children),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                group.pinnedMessage!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _text, fontSize: 13),
+              ),
+            ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
-  Widget _option(IconData icon, String title, String subtitle, VoidCallback onTap,
-          {Widget? trailing}) =>
-      Material(
+  Widget _quickActions(Group group, bool muted) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+    child: Row(
+      children: [
+        _quick(
+          Icons.perm_media_rounded,
+          'Media',
+          () => _openMediaGallery(group),
+        ),
+        _quick(Icons.search_rounded, 'Search', () {
+          Navigator.pop(context);
+          widget.onSearchRequested?.call();
+        }),
+        _quick(
+          muted
+              ? Icons.notifications_off_rounded
+              : Icons.notifications_active_rounded,
+          muted ? 'Muted' : 'Mute',
+          () => _muteSheet(group),
+        ),
+        _quick(
+          Icons.wallpaper_rounded,
+          'Theme',
+          () => _wallpaperSheet(group),
+          last: true,
+        ),
+      ],
+    ),
+  );
+
+  Widget _quick(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    bool last = false,
+  }) => Expanded(
+    child: Padding(
+      padding: EdgeInsets.only(right: last ? 0 : 10),
+      child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            child: Row(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(18),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _accent.withValues(alpha: 0.16)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: _dark ? 0.28 : 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _accent.withOpacity(0.13),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(icon, color: _accent, size: 19),
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: _text,
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Text(subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: _subtext, fontSize: 11.5)),
-                    ],
+                Icon(icon, color: _accent, size: 20),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _subtext,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(width: 8),
-                trailing ??
-                    Icon(Icons.chevron_right_rounded,
-                        color: _subtext, size: 20),
               ],
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
+
+  Widget _section(String title, List<Widget> children) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: _subtext,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: (_dark ? Colors.white : Colors.black).withValues(
+                alpha: 0.06,
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: _dark ? 0.25 : 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(children: children),
+        ),
+      ],
+    ),
+  );
+
+  Widget _option(
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap, {
+    Widget? trailing,
+  }) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _accent.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, color: _accent, size: 19),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: _text,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: _subtext, fontSize: 11.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            trailing ??
+                Icon(Icons.chevron_right_rounded, color: _subtext, size: 20),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _memberCard({required Widget child}) => Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-        decoration: BoxDecoration(
-          color: _surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-              color: (_dark ? Colors.white : Colors.black).withOpacity(0.06)),
-        ),
-        child: child,
-      );
+    margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+    decoration: BoxDecoration(
+      color: _surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: (_dark ? Colors.white : Colors.black).withValues(alpha: 0.06),
+      ),
+    ),
+    child: child,
+  );
 
   Widget _memberTile(Group group, String member, bool viewerIsAdmin) {
     final isSelf = member == widget.currentUser;
@@ -1333,14 +1512,20 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 gradient: LinearGradient(
                   colors: isOwner
                       ? [_accent, VeilTheme.neonPurple]
-                      : [_accent.withOpacity(0.65), _accent.withOpacity(0.3)],
+                      : [
+                          _accent.withValues(alpha: 0.65),
+                          _accent.withValues(alpha: 0.3),
+                        ],
                 ),
               ),
-              child: Text(member.isEmpty ? '?' : member[0].toUpperCase(),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
+              child: Text(
+                member.isEmpty ? '?' : member[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ),
             if (isOwner || isMemberAdmin)
               Positioned(
@@ -1364,13 +1549,16 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         title: Row(
           children: [
             Flexible(
-              child: Text(isSelf ? 'You' : member,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: _text,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600)),
+              child: Text(
+                isSelf ? 'You' : member,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _text,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             if (isOwner || isMemberAdmin) ...[
               const SizedBox(width: 8),
@@ -1378,29 +1566,35 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: (isOwner ? const Color(0xFFF59E0B) : _accent)
-                      .withOpacity(0.15),
+                      .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(isOwner ? 'OWNER' : 'ADMIN',
-                    style: TextStyle(
-                        color: isOwner ? const Color(0xFFF59E0B) : _accent,
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5)),
+                child: Text(
+                  isOwner ? 'OWNER' : 'ADMIN',
+                  style: TextStyle(
+                    color: isOwner ? const Color(0xFFF59E0B) : _accent,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
             ],
           ],
         ),
-        subtitle: Text('@$member',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: _subtext, fontSize: 11.5)),
+        subtitle: Text(
+          '@$member',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: _subtext, fontSize: 11.5),
+        ),
         trailing: canModerate
             ? PopupMenuButton<String>(
                 icon: Icon(Icons.more_vert_rounded, color: _subtext, size: 20),
                 color: _dark ? const Color(0xFF11172A) : Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 onSelected: (value) {
                   switch (value) {
                     case 'promote':
@@ -1416,12 +1610,25 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 },
                 itemBuilder: (_) => [
                   if (!isMemberAdmin)
-                    _menuItem('promote', Icons.shield_rounded, 'Make admin', _accent),
+                    _menuItem(
+                      'promote',
+                      Icons.shield_rounded,
+                      'Make admin',
+                      _accent,
+                    ),
                   if (isMemberAdmin && group.owner == widget.currentUser)
-                    _menuItem('demote', Icons.remove_moderator_rounded,
-                        'Dismiss as admin', const Color(0xFFF59E0B)),
-                  _menuItem('kick', Icons.person_remove_rounded,
-                      'Remove from group', const Color(0xFFEF4444)),
+                    _menuItem(
+                      'demote',
+                      Icons.remove_moderator_rounded,
+                      'Dismiss as admin',
+                      const Color(0xFFF59E0B),
+                    ),
+                  _menuItem(
+                    'kick',
+                    Icons.person_remove_rounded,
+                    'Remove from group',
+                    const Color(0xFFEF4444),
+                  ),
                 ],
               )
             : null,
@@ -1430,59 +1637,72 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   }
 
   PopupMenuItem<String> _menuItem(
-          String value, IconData icon, String label, Color color) =>
-      PopupMenuItem<String>(
-        value: value,
-        child: Row(children: [
-          Icon(icon, size: 17, color: color),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: _text, fontSize: 13.5, fontWeight: FontWeight.w600)),
+    String value,
+    IconData icon,
+    String label,
+    Color color,
+  ) => PopupMenuItem<String>(
+    value: value,
+    child: Row(
+      children: [
+        Icon(icon, size: 17, color: color),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _text,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ]),
-      );
+        ),
+      ],
+    ),
+  );
 
   Widget _dangerButton({
     required IconData icon,
     required String label,
     required VoidCallback? onTap,
-  }) =>
-      Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
+  }) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEF4444).withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withOpacity(0.10),
-              borderRadius: BorderRadius.circular(16),
-              border:
-                  Border.all(color: const Color(0xFFEF4444).withOpacity(0.35)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: const Color(0xFFEF4444), size: 18),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                          letterSpacing: 0.8)),
-                ),
-              ],
-            ),
+          border: Border.all(
+            color: const Color(0xFFEF4444).withValues(alpha: 0.35),
           ),
         ),
-      );
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: const Color(0xFFEF4444), size: 18),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFEF4444),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

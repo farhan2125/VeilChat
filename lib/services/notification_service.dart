@@ -98,7 +98,8 @@ class NotificationService {
     );
     await _notifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     // Separate channel for calls - higher priority
@@ -112,7 +113,8 @@ class NotificationService {
     );
     await _notifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(callChannel);
   }
 
@@ -136,15 +138,23 @@ class NotificationService {
     // Clean the message - never show encrypted hex
     String displayMsg = message;
     // If it looks like hex/encrypted, replace with friendly text
-    if (displayMsg.length > 20 && RegExp(r'^[0-9a-f]+$').hasMatch(displayMsg.trim())) {
-      displayMsg = type == 'IMAGE' ? '📷 Photo'
-          : type == 'AUDIO' ? '🎤 Voice message'
-          : type == 'FILE' ? '📎 File'
+    if (displayMsg.length > 20 &&
+        RegExp(r'^[0-9a-f]+$').hasMatch(displayMsg.trim())) {
+      displayMsg = type == 'IMAGE'
+          ? '📷 Photo'
+          : type == 'AUDIO'
+          ? '🎤 Voice message'
+          : type == 'FILE'
+          ? '📎 File'
           : '💬 New message';
-    } else if (displayMsg.contains('/data/user/') || displayMsg.contains('/storage/')) {
-      displayMsg = type == 'IMAGE' ? '📷 Photo'
-          : type == 'AUDIO' ? '🎤 Voice message'
-          : type == 'FILE' ? '📎 File'
+    } else if (displayMsg.contains('/data/user/') ||
+        displayMsg.contains('/storage/')) {
+      displayMsg = type == 'IMAGE'
+          ? '📷 Photo'
+          : type == 'AUDIO'
+          ? '🎤 Voice message'
+          : type == 'FILE'
+          ? '📎 File'
           : '💬 New message';
     }
     // Get or create ID for this sender
@@ -154,14 +164,21 @@ class NotificationService {
     // Build body text based on message type
     String body;
     switch (type) {
-      case 'IMAGE': body = '📷 Sent a photo'; break;
-      case 'AUDIO': body = '🎤 Sent a voice message'; break;
-      case 'FILE':  body = '📁 Sent a file'; break;
+      case 'IMAGE':
+        body = '📷 Sent a photo';
+        break;
+      case 'AUDIO':
+        body = '🎤 Sent a voice message';
+        break;
+      case 'FILE':
+        body = '📁 Sent a file';
+        break;
       default:
         // Decrypt preview not possible here - show generic text
         body = message.length > 60 ? '${message.substring(0, 60)}...' : message;
         // If it looks like hex (encrypted), show generic
-        if (body.length > 20 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(body.replaceAll(' ', ''))) {
+        if (body.length > 20 &&
+            RegExp(r'^[0-9a-fA-F]+$').hasMatch(body.replaceAll(' ', ''))) {
           body = '🔒 New encrypted message';
         }
     }
@@ -196,9 +213,16 @@ class NotificationService {
   }
 
   /// Show incoming call notification.
-  Future<void> showIncomingCallNotification(String caller, {bool isDark = true}) async {
+  Future<void> showIncomingCallNotification(
+    String caller, {
+    bool isDark = true,
+  }) async {
     if (!_isInitialized) return;
-    final payload = jsonEncode({'sender': caller, 'type': 'call', 'isDark': isDark});
+    final payload = jsonEncode({
+      'sender': caller,
+      'type': 'call',
+      'isDark': isDark,
+    });
     const androidDetails = AndroidNotificationDetails(
       'veilchat_calls',
       'VeilChat Calls',

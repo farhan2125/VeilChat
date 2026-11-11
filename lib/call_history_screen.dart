@@ -61,7 +61,6 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
 
   late final TabController _tabController;
 
-
   @override
   void initState() {
     super.initState();
@@ -195,8 +194,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
       body: NestedScrollView(
         headerSliverBuilder: (context, innerScrolled) => [
           SliverOverlapAbsorber(
-            handle:
-                NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
             sliver: SliverAppBar(
               // ✅ pinned keeps the header locked above the content instead of
               // letting rows paint over it.
@@ -257,9 +255,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
                 child: _FilterBar(
                   height: _filterBarHeight,
                   labels: _filterLabels,
-                  counts: [
-                    for (final f in _filters) _countFor(f),
-                  ],
+                  counts: [for (final f in _filters) _countFor(f)],
                   selected: _index,
                   accent: accent,
                   isDark: isDark,
@@ -330,8 +326,9 @@ class _BlurBackdrop extends StatelessWidget {
             ),
             border: Border(
               bottom: BorderSide(
-                color: (isDark ? Colors.white : Colors.black)
-                    .withValues(alpha: 0.07),
+                color: (isDark ? Colors.white : Colors.black).withValues(
+                  alpha: 0.07,
+                ),
                 width: 0.6,
               ),
             ),
@@ -391,8 +388,9 @@ class _FilterBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isSelected
                     ? accent.withValues(alpha: isDark ? 0.20 : 0.14)
-                    : (isDark ? Colors.white : Colors.black)
-                        .withValues(alpha: 0.05),
+                    : (isDark ? Colors.white : Colors.black).withValues(
+                        alpha: 0.05,
+                      ),
                 borderRadius: BorderRadius.circular(VeilBrand.rMd),
                 border: Border.all(
                   color: isSelected
@@ -413,7 +411,9 @@ class _FilterBar extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w600,
                       color: isSelected
                           ? accent
                           : (isDark ? Colors.white60 : Colors.black54),
@@ -430,8 +430,9 @@ class _FilterBar extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? accent.withValues(alpha: 0.25)
-                            : (isDark ? Colors.white : Colors.black)
-                                .withValues(alpha: 0.08),
+                            : (isDark ? Colors.white : Colors.black).withValues(
+                                alpha: 0.08,
+                              ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -498,8 +499,9 @@ class _CallListView extends StatelessWidget {
               // ✅ Injects the exact overlap consumed by the pinned header, so
               // the first row starts *below* it instead of under it.
               SliverOverlapInjector(
-                handle:
-                    NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+                handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                  context,
+                ),
               ),
 
               if (isLoading)
@@ -628,11 +630,13 @@ class _CallTile extends StatelessWidget {
     final Color statusColor = isMissed
         ? VeilBrand.danger
         : isDeclined
-            ? VeilBrand.warning
-            : accent;
+        ? VeilBrand.warning
+        : accent;
 
     final IconData directionIcon = isMissed
-        ? (isIncoming ? Icons.call_missed_rounded : Icons.call_missed_outgoing_rounded)
+        ? (isIncoming
+              ? Icons.call_missed_rounded
+              : Icons.call_missed_outgoing_rounded)
         : (isIncoming ? Icons.call_received_rounded : Icons.call_made_rounded);
 
     return Dismissible(
@@ -721,8 +725,8 @@ class _CallTile extends StatelessWidget {
                           color: isMissed
                               ? VeilBrand.danger
                               : (isIncoming
-                                  ? VeilBrand.success
-                                  : VeilBrand.info),
+                                    ? VeilBrand.success
+                                    : VeilBrand.info),
                         ),
                         const SizedBox(width: 5),
                         Flexible(
@@ -733,8 +737,7 @@ class _CallTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w500,
-                              color:
-                                  isDark ? Colors.white54 : Colors.black45,
+                              color: isDark ? Colors.white54 : Colors.black45,
                             ),
                           ),
                         ),
@@ -827,27 +830,27 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.filter, required this.isDark});
 
   (String, String, IconData) get _copy => switch (filter) {
-        'audio' => (
-            'No Audio Calls',
-            'Your encrypted voice calls will appear here',
-            Icons.call_rounded,
-          ),
-        'video' => (
-            'No Video Calls',
-            'Your encrypted video calls will appear here',
-            Icons.videocam_rounded,
-          ),
-        'missed' => (
-            'No Missed Calls',
-            'You are all caught up',
-            Icons.call_missed_rounded,
-          ),
-        _ => (
-            'No Call History',
-            'Calls you make or receive will appear here',
-            Icons.history_rounded,
-          ),
-      };
+    'audio' => (
+      'No Audio Calls',
+      'Your encrypted voice calls will appear here',
+      Icons.call_rounded,
+    ),
+    'video' => (
+      'No Video Calls',
+      'Your encrypted video calls will appear here',
+      Icons.videocam_rounded,
+    ),
+    'missed' => (
+      'No Missed Calls',
+      'You are all caught up',
+      Icons.call_missed_rounded,
+    ),
+    _ => (
+      'No Call History',
+      'Calls you make or receive will appear here',
+      Icons.history_rounded,
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {

@@ -4,38 +4,60 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'veil_theme.dart';
+import 'services/network_service.dart';
 
 /// Per-chat PIN lock screen.
 /// Shows a numeric PIN pad before allowing access to a locked chat.
-/// PIN is stored as SHA-256 hash per contact in SharedPreferences.
+/// PIN is stored as SHA-256 hash per (owner, contact) in SharedPreferences.
 class ChatLockScreen extends StatefulWidget {
   final String contactName;
+  final String? myUsername;
   final bool isDark;
   final Widget child; // The actual chat screen
 
   const ChatLockScreen({
     super.key,
     required this.contactName,
+    this.myUsername,
     required this.isDark,
     required this.child,
   });
 
-  static String _prefKey(String contact) => 'chat_lock_pin_\$contact';
+  static String _prefKey(String contact, [String? owner]) {
+    final user = (owner != null && owner.isNotEmpty)
+        ? owner
+        : (NetworkService().currentUser ?? 'global');
+    return 'chat_lock_pin_${user}_$contact';
+  }
 
   /// Check if a contact has a lock set
-  static Future<bool> isLocked(String contact) async {
+  static Future<bool> isLocked(String contact, [String? owner]) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_prefKey(contact));
+    // Clean up legacy corrupted key so old typo never locks unconfigured chats
+    const legacyKey = 'chat_lock_pin_\$contact';
+    if (prefs.containsKey(legacyKey)) {
+      await prefs.remove(legacyKey);
+    }
+    return prefs.containsKey(_prefKey(contact, owner));
   }
 
   /// Set PIN for a contact (null to remove)
-  static Future<void> setPin(String contact, String? pin) async {
+  static Future<void> setPin(
+    String contact,
+    String? pin, [
+    String? owner,
+  ]) async {
     final prefs = await SharedPreferences.getInstance();
+    const legacyKey = 'chat_lock_pin_\$contact';
+    if (prefs.containsKey(legacyKey)) {
+      await prefs.remove(legacyKey);
+    }
+    final key = _prefKey(contact, owner);
     if (pin == null) {
-      await prefs.remove(_prefKey(contact));
+      await prefs.remove(key);
     } else {
       final hash = sha256.convert(utf8.encode(pin)).toString();
-      await prefs.setString(_prefKey(contact), hash);
+      await prefs.setString(key, hash);
     }
   }
 
@@ -51,7 +73,6 @@ class _ChatLockScreenState extends State<ChatLockScreen>
   bool _error = false;
   bool _verifying = false;
   late AnimationController _shakeCtrl;
-
   late Animation<double> _shakeAnim;
 
   @override
@@ -61,8 +82,10 @@ class _ChatLockScreenState extends State<ChatLockScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticOut));
+    _shakeAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticOut));
     _checkLock();
   }
 
@@ -73,7 +96,10 @@ class _ChatLockScreenState extends State<ChatLockScreen>
   }
 
   Future<void> _checkLock() async {
-    final locked = await ChatLockScreen.isLocked(widget.contactName);
+    final locked = await ChatLockScreen.isLocked(
+      widget.contactName,
+      widget.myUsername,
+    );
     if (mounted) setState(() => _hasLock = locked);
   }
 
@@ -84,8 +110,6 @@ class _ChatLockScreenState extends State<ChatLockScreen>
       _error = false;
     });
     HapticFeedback.lightImpact();
-    // Auto-submit on the last digit (onCompleted behaviour). The explicit
-    // ✓ button below is kept for users who expect a confirm affordance.
     if (_entered.length == 4) await _verify();
   }
 
@@ -95,11 +119,6 @@ class _ChatLockScreenState extends State<ChatLockScreen>
     HapticFeedback.lightImpact();
   }
 
-  /// Explicit "OK / Done" action.
-  ///
-  /// ✅ FIX: there was previously no way to confirm a PIN other than typing the
-  /// 4th digit. An incomplete PIN now gives clear feedback instead of doing
-  /// nothing at all.
   Future<void> _onSubmit() async {
     if (_entered.length < 4) {
       HapticFeedback.heavyImpact();
@@ -115,16 +134,23 @@ class _ChatLockScreenState extends State<ChatLockScreen>
     _verifying = true;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final stored =
-          prefs.getString(ChatLockScreen._prefKey(widget.contactName));
+      final key = ChatLockScreen._prefKey(
+        widget.contactName,
+        widget.myUsername,
+      );
+      final stored = prefs.getString(key);
       final hash = sha256.convert(utf8.encode(_entered)).toString();
       if (hash == stored) {
         HapticFeedback.mediumImpact();
-        // Smooth fade into the chat rather than an abrupt swap.
         if (mounted) setState(() => _isUnlocked = true);
       } else {
         HapticFeedback.heavyImpact();
-        if (mounted) setState(() { _error = true; _entered = ''; });
+        if (mounted) {
+          setState(() {
+            _error = true;
+            _entered = '';
+          });
+        }
         _shakeCtrl.forward(from: 0);
       }
     } catch (e) {
@@ -139,6 +165,42 @@ class _ChatLockScreenState extends State<ChatLockScreen>
     }
   }
 
+  Future<void> _showResetDialog() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+        title: Text(
+          'Reset Chat Lock?',
+          style: TextStyle(color: widget.isDark ? Colors.white : Colors.black),
+        ),
+        content: Text(
+          'Remove the PIN lock for "${widget.contactName}"? You will regain instant access to this chat.',
+          style: TextStyle(
+            color: widget.isDark ? Colors.white70 : Colors.black87,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'RESET LOCK',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await ChatLockScreen.setPin(widget.contactName, null, widget.myUsername);
+      setState(() => _isUnlocked = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -146,109 +208,158 @@ class _ChatLockScreenState extends State<ChatLockScreen>
     final themeColor = VeilTheme.accentColor;
 
     return Scaffold(
-      backgroundColor:
-          widget.isDark ? const Color(0xFF050A15) : const Color(0xFFF2F6FF),
+      backgroundColor: widget.isDark
+          ? const Color(0xFF050A15)
+          : const Color(0xFFF2F6FF),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: widget.isDark ? Colors.white : Colors.black,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Lock icon
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: themeColor.withOpacity(0.3), width: 2),
-                ),
-                child: Icon(Icons.lock_rounded, color: themeColor, size: 40),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                widget.contactName,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : Colors.black,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Enter PIN to unlock',
-                style: TextStyle(
-                  color: widget.isDark ? Colors.white38 : Colors.black38,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 32),
-              // PIN dots
-              AnimatedBuilder(
-                animation: _shakeAnim,
-                builder: (_, child) => Transform.translate(
-                  offset: Offset(
-                    _error ? (_shakeAnim.value * 10 * ((_shakeAnim.value * 4).toInt() % 2 == 0 ? 1 : -1)) : 0,
-                    0,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Compact lock icon
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: themeColor.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: themeColor.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
                   ),
-                  child: child,
+                  child: Icon(Icons.lock_rounded, color: themeColor, size: 36),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (i) {
-                    final filled = i < _entered.length;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.symmetric(horizontal: 10),
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: _error
-                            ? Colors.red
-                            : filled
-                                ? themeColor
-                                : Colors.transparent,
-                        shape: BoxShape.circle,
-                        border: Border.all(
+                const SizedBox(height: 14),
+                Text(
+                  widget.contactName,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: widget.isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Enter PIN to unlock',
+                  style: TextStyle(
+                    color: widget.isDark ? Colors.white38 : Colors.black38,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // PIN dots
+                AnimatedBuilder(
+                  animation: _shakeAnim,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      _error
+                          ? (_shakeAnim.value *
+                                10 *
+                                ((_shakeAnim.value * 4).toInt() % 2 == 0
+                                    ? 1
+                                    : -1))
+                          : 0,
+                      0,
+                    ),
+                    child: child,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (i) {
+                      final filled = i < _entered.length;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
                           color: _error
                               ? Colors.red
                               : filled
-                                  ? themeColor
-                                  : (widget.isDark ? Colors.white38 : Colors.black38),
-                          width: 2,
+                              ? themeColor
+                              : Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _error
+                                ? Colors.red
+                                : filled
+                                ? themeColor
+                                : (widget.isDark
+                                      ? Colors.white38
+                                      : Colors.black38),
+                            width: 2,
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
-              ),
-              if (_error) ...[
-                const SizedBox(height: 12),
-                Text('Wrong PIN',
-                  style: TextStyle(color: Colors.red.withOpacity(0.8),
-                      fontSize: 13)),
+                if (_error) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Wrong PIN',
+                    style: TextStyle(
+                      color: Colors.red.withValues(alpha: 0.8),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                // Responsive keypad (childAspectRatio: 1.35 prevents vertical overflow)
+                SizedBox(
+                  width: 280,
+                  child: GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.35,
+                    children: [
+                      ...[
+                        '1',
+                        '2',
+                        '3',
+                        '4',
+                        '5',
+                        '6',
+                        '7',
+                        '8',
+                        '9',
+                      ].map((d) => _digitBtn(d, themeColor)),
+                      _deleteBtn(themeColor),
+                      _digitBtn('0', themeColor),
+                      _submitBtn(themeColor),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextButton(
+                  onPressed: _showResetDialog,
+                  child: Text(
+                    'Forgot PIN?',
+                    style: TextStyle(
+                      color: themeColor.withValues(alpha: 0.75),
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
               ],
-              const SizedBox(height: 32),
-              // Number pad
-              SizedBox(
-                width: 280,
-                child: GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  children: [
-                    ...['1','2','3','4','5','6','7','8','9'].map((d) =>
-                      _digitBtn(d, themeColor)),
-                    _deleteBtn(themeColor),
-                    _digitBtn('0', themeColor),
-                    // ✅ FIX: explicit confirm button — the pad previously had
-                    // an empty cell here and no way to submit.
-                    _submitBtn(themeColor),
-
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -260,24 +371,24 @@ class _ChatLockScreenState extends State<ChatLockScreen>
       onTap: () => _onDigit(digit),
       child: Container(
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Center(
-          child: Text(digit,
+          child: Text(
+            digit,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w600,
               color: widget.isDark ? Colors.white : Colors.black,
-            )),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  /// Confirm / OK key. Enabled state is reflected visually so the user knows
-  /// when the PIN is ready to submit.
   Widget _submitBtn(Color color) {
     final ready = _entered.length == 4;
     return GestureDetector(
@@ -288,20 +399,20 @@ class _ChatLockScreenState extends State<ChatLockScreen>
         decoration: BoxDecoration(
           gradient: ready
               ? LinearGradient(
-                  colors: [color, color.withOpacity(0.65)],
+                  colors: [color, color.withValues(alpha: 0.65)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: ready ? null : color.withOpacity(0.06),
+          color: ready ? null : color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: ready ? color : color.withOpacity(0.18),
+            color: ready ? color : color.withValues(alpha: 0.18),
           ),
           boxShadow: ready
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.35),
+                    color: color.withValues(alpha: 0.35),
                     blurRadius: 14,
                     offset: const Offset(0, 4),
                   ),
@@ -322,18 +433,16 @@ class _ChatLockScreenState extends State<ChatLockScreen>
   }
 
   Widget _deleteBtn(Color color) {
-
     return GestureDetector(
       onTap: _onDelete,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.08),
+          color: Colors.red.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.red.withOpacity(0.2)),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
         ),
         child: const Center(
-          child: Icon(Icons.backspace_outlined,
-              color: Colors.red, size: 22),
+          child: Icon(Icons.backspace_outlined, color: Colors.red, size: 22),
         ),
       ),
     );

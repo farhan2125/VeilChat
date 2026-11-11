@@ -1,13 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'veil_theme.dart';
-import 'veil_components.dart';
-import 'veil_painters.dart';
-import 'main_screen.dart';
-import 'services/network_service.dart';
+import 'branding/veil_brand.dart';
 import 'services/group_service.dart';
 import 'services/media_service.dart';
+import 'services/network_service.dart';
+import 'veil_components.dart';
+import 'veil_feedback.dart';
+import 'veil_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,12 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   String _serverIP = "192.168.100.6";
   String _serverPort = "5000";
 
-  final _secureStorage = const FlutterSecureStorage();
-
   @override
   void initState() {
     super.initState();
-    // Reset accent color to dark default — avoids pink bleed from light theme logout
     VeilTheme.accentColor = VeilTheme.neonBlue;
     _loadSettings();
     GroupService();
@@ -49,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _serverIP = prefs.getString('server_ip') ?? "192.168.100.6";
       _serverPort = prefs.getString('server_port') ?? "5000";
@@ -59,57 +57,122 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showServerSettings() {
     final ipCtrl = TextEditingController(text: _serverIP);
     final portCtrl = TextEditingController(text: _serverPort);
+    String? pingStatus;
+    bool pinging = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-        title: Text(
-          "Server Config",
-          style: TextStyle(color: isDark ? Colors.white : Colors.black),
-        ),
-        content: SingleChildScrollView( // <-- Ye line add ki hai
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: ipCtrl,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                decoration: const InputDecoration(labelText: "Server IP"),
-              ),
-              TextField(
-                controller: portCtrl,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                decoration: const InputDecoration(labelText: "Port"),
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? VeilBrand.veilSlate : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
+          title: Text(
+            "Server Config",
+            style: TextStyle(color: isDark ? Colors.white : Colors.black),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: ipCtrl,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                  decoration: const InputDecoration(labelText: "Server IP"),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: portCtrl,
+                  keyboardType: TextInputType.number,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                  decoration: const InputDecoration(labelText: "Port"),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: pinging
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            pinging = true;
+                            pingStatus = 'Testing TCP socket...';
+                          });
+                          final sw = Stopwatch()..start();
+                          try {
+                            final port =
+                                int.tryParse(portCtrl.text.trim()) ?? 5000;
+                            final sock = await Socket.connect(
+                              ipCtrl.text.trim(),
+                              port,
+                              timeout: const Duration(milliseconds: 2500),
+                            );
+                            sw.stop();
+                            sock.destroy();
+                            setDialogState(() {
+                              pinging = false;
+                              pingStatus =
+                                  '✅ Reachable (${sw.elapsedMilliseconds} ms)';
+                            });
+                          } catch (_) {
+                            setDialogState(() {
+                              pinging = false;
+                              pingStatus =
+                                  '❌ Unreachable — check IP/port & firewall';
+                            });
+                          }
+                        },
+                  icon: const Icon(Icons.network_check_rounded, size: 16),
+                  label: Text(pinging ? "Pinging..." : "Test Connection"),
+                ),
+                if (pingStatus != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    pingStatus!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: pingStatus!.startsWith('✅')
+                          ? VeilBrand.success
+                          : VeilBrand.warning,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final nextIp = ipCtrl.text.trim();
+                final nextPort = portCtrl.text.trim();
+                await prefs.setString('server_ip', nextIp);
+                await prefs.setString('server_port', nextPort);
+                if (mounted) {
+                  setState(() {
+                    _serverIP = nextIp;
+                    _serverPort = nextPort;
+                  });
+                }
+                MediaService.updateBaseUrl(nextIp);
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text("Save"),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('server_ip', ipCtrl.text);
-              await prefs.setString('server_port', portCtrl.text);
-              setState(() {
-                _serverIP = ipCtrl.text;
-                _serverPort = portCtrl.text;
-              });
-              MediaService.updateBaseUrl(ipCtrl.text);
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          )
-        ],
       ),
     );
   }
 
   Future<void> _handleAuth(bool isRegister) async {
     if (_userController.text.isEmpty || _passController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Username and password required")),
-      );
+      VeilFeedback.warning(context, "Username and password required");
       return;
     }
 
@@ -117,24 +180,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final result = await NetworkService().connectAndAuth(
       _serverIP,
-      int.parse(_serverPort),
+      int.tryParse(_serverPort) ?? 5000,
       _userController.text,
       _passController.text,
       isRegister,
       allowSelfSigned: true,
     );
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (result['success']) {
+    if (result['success'] == true) {
       if (isRegister) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Registered! Please login.")),
-        );
+        VeilFeedback.success(context, "Registered! Please login.");
       } else {
         final sharedKey = _keyController.text.trim();
-
-        // ✅ Load groups from DB now that we know the user
         await GroupService().loadGroups(_userController.text);
 
         if (mounted) {
@@ -150,15 +210,14 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ ${result['msg']}")),
-      );
+      VeilFeedback.error(context, "${result['msg']}");
     }
   }
 
   void _handleForgotPassword() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Contact server administrator to reset password.")),
+    VeilFeedback.info(
+      context,
+      "Contact server administrator to reset password.",
     );
   }
 
@@ -176,7 +235,6 @@ class _LoginScreenState extends State<LoginScreen> {
             isDark ? 'assets/images/bg_dark.jpg' : 'assets/images/bg_light.jpg',
             fit: BoxFit.cover,
           ),
-
           Center(
             child: SingleChildScrollView(
               child: Container(
@@ -189,37 +247,59 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Image.asset(
                       'assets/images/logo.png',
-                      width: 100,
-                      height: 100,
+                      width: 90,
+                      height: 90,
                       fit: BoxFit.contain,
                     ),
-                    const SizedBox(height: 15),
-
+                    const SizedBox(height: 12),
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Color(0xFF00d4ff), Color(0xFF7a7cff), Color(0xFFc77dff)],
+                        colors: [
+                          Color(0xFF00d4ff),
+                          Color(0xFF7a7cff),
+                          Color(0xFFc77dff),
+                        ],
                       ).createShader(bounds),
-                      child: Text(
+                      child: const Text(
                         "VeilChat",
                         style: TextStyle(
-                          fontSize: 36,
+                          fontSize: 34,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 30),
-
-                    _buildCssInput("Username", false, textColor, _userController),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _showServerSettings,
+                      child: VeilBadge(
+                        label: 'RELAY: $_serverIP:$_serverPort',
+                        icon: Icons.dns_outlined,
+                        color: themeColor,
+                        isDark: isDark,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    _buildCssInput(
+                      "Username",
+                      false,
+                      textColor,
+                      _userController,
+                    ),
                     const SizedBox(height: 15),
-
-                    _buildCssInput("Password", true, textColor, _passController),
+                    _buildCssInput(
+                      "Password",
+                      true,
+                      textColor,
+                      _passController,
+                    ),
                     const SizedBox(height: 15),
-
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        border: Border.all(color: themeColor.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: themeColor.withValues(alpha: 0.3),
+                        ),
                         borderRadius: BorderRadius.circular(10),
                         color: themeColor.withValues(alpha: 0.05),
                       ),
@@ -254,68 +334,38 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
-
+                    const SizedBox(height: 26),
                     _isLoading
                         ? CircularProgressIndicator(color: themeColor)
                         : Row(
                             children: [
                               Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [themeColor, themeColor.withOpacity(0.7)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(25),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: themeColor.withOpacity(0.3),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ElevatedButton(
-                                    onPressed: () => _handleAuth(false),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(25),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      "Login",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
+                                child: VeilButton(
+                                  isDark: isDark,
+                                  label: "Login",
+                                  gradient: [
+                                    themeColor,
+                                    themeColor.withValues(alpha: 0.7),
+                                  ],
+                                  onTap: () => _handleAuth(false),
                                 ),
                               ),
-                              const SizedBox(width: 15),
+                              const SizedBox(width: 12),
                               Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => _handleAuth(true),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                      color: isDark ? Colors.white30 : Colors.black26,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: const StadiumBorder(),
-                                  ),
-                                  child: Text(
-                                    "Register",
-                                    style: TextStyle(color: textColor),
-                                  ),
+                                child: VeilButton(
+                                  isDark: isDark,
+                                  label: "Register",
+                                  isOutlined: true,
+                                  gradient: [
+                                    themeColor,
+                                    themeColor.withValues(alpha: 0.7),
+                                  ],
+                                  onTap: () => _handleAuth(true),
                                 ),
                               ),
                             ],
                           ),
                     const SizedBox(height: 20),
-
                     GestureDetector(
                       onTap: _handleForgotPassword,
                       child: Text(
@@ -328,16 +378,17 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
           Positioned(
             top: 50,
             right: 20,
             child: IconButton(
-              icon: Icon(Icons.settings, color: isDark ? Colors.white54 : Colors.black54),
+              icon: Icon(
+                Icons.settings,
+                color: isDark ? Colors.white54 : Colors.black54,
+              ),
               onPressed: _showServerSettings,
             ),
           ),
-
           Positioned(
             top: 50,
             left: 20,
@@ -364,11 +415,11 @@ class _LoginScreenState extends State<LoginScreen> {
       style: TextStyle(color: textColor),
       decoration: InputDecoration(
         labelText: hint,
-        labelStyle: TextStyle(
-          color: isDark ? Colors.white54 : Colors.black45,
-        ),
+        labelStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black45),
         enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: isDark ? Colors.white30 : Colors.black26),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white30 : Colors.black26,
+          ),
         ),
         focusedBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: VeilTheme.neonBlue, width: 2),
@@ -379,7 +430,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
                   color: Colors.grey,
                 ),
-                onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                onPressed: () =>
+                    setState(() => _isPasswordVisible = !_isPasswordVisible),
               )
             : null,
       ),

@@ -1,15 +1,15 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
-import 'veil_theme.dart';
-import 'veil_components.dart';
+import 'package:image_picker/image_picker.dart';
+import 'branding/veil_brand.dart';
 import 'services/stego_service.dart';
+import 'veil_components.dart';
+import 'veil_feedback.dart';
+import 'veil_theme.dart';
 
-/// Dedicated screen for extracting hidden messages from images.
-/// User selects an image, enters password, and sees the extracted secret.
-/// Can copy to clipboard or save as note.
+/// Dedicated screen for extracting hidden messages from steganographic images.
 class StegoExtractScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggleTheme;
@@ -30,7 +30,9 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
   final TextEditingController _passController = TextEditingController();
 
   File? _selectedImage;
+  StegoImageCapacity? _capacity;
   String? _extractedMessage;
+  String? _errorMessage;
   bool _isExtracting = false;
   bool _isCopied = false;
 
@@ -43,9 +45,14 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
   Future<void> _pickImage() async {
     final file = await _picker.pickImage(source: ImageSource.gallery);
     if (file != null) {
+      final imgFile = File(file.path);
+      final cap = _stego.inspectImage(imgFile);
+      if (!mounted) return;
       setState(() {
-        _selectedImage = File(file.path);
+        _selectedImage = imgFile;
+        _capacity = cap;
         _extractedMessage = null;
+        _errorMessage = null;
         _isCopied = false;
       });
     }
@@ -53,17 +60,18 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
 
   Future<void> _extractMessage() async {
     if (_selectedImage == null) {
-      _showError('Please select an image first');
+      VeilFeedback.warning(context, 'Please select an image first');
       return;
     }
     if (_passController.text.isEmpty) {
-      _showError('Password is required');
+      VeilFeedback.warning(context, 'Password is required');
       return;
     }
 
     setState(() {
       _isExtracting = true;
       _extractedMessage = null;
+      _errorMessage = null;
       _isCopied = false;
     });
 
@@ -77,8 +85,10 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
         _isExtracting = false;
         if (result.success && result.message != null) {
           _extractedMessage = result.message!;
+          VeilFeedback.success(context, 'Hidden payload extracted!');
         } else {
-          _showError(result.error ?? 'Extraction failed');
+          _errorMessage = result.error ?? 'Extraction failed';
+          VeilFeedback.error(context, _errorMessage!);
         }
       });
     }
@@ -88,19 +98,11 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
     if (_extractedMessage != null) {
       Clipboard.setData(ClipboardData(text: _extractedMessage!));
       setState(() => _isCopied = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Copied to clipboard')),
-      );
+      VeilFeedback.success(context, 'Copied to clipboard');
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) setState(() => _isCopied = false);
       });
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
   }
 
   @override
@@ -117,7 +119,9 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
-              color: (widget.isDark ? Colors.black : Colors.white).withOpacity(0.2),
+              color: (widget.isDark ? Colors.black : Colors.white).withValues(
+                alpha: 0.2,
+              ),
             ),
           ),
         ),
@@ -150,7 +154,6 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
         padding: const EdgeInsets.fromLTRB(20, 100, 20, 30),
         child: Column(
           children: [
-            // Image preview
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -158,7 +161,7 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: (widget.isDark ? Colors.white : Colors.black)
-                      .withOpacity(0.05),
+                      .withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: _selectedImage != null
@@ -179,14 +182,18 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
                           Icon(
                             Icons.add_photo_alternate_rounded,
                             size: 50,
-                            color: widget.isDark ? Colors.white30 : Colors.black26,
+                            color: widget.isDark
+                                ? Colors.white30
+                                : Colors.black26,
                           ),
                           const SizedBox(height: 10),
                           Text(
                             'TAP TO SELECT IMAGE',
                             style: TextStyle(
                               fontSize: 12,
-                              color: widget.isDark ? Colors.white30 : Colors.black26,
+                              color: widget.isDark
+                                  ? Colors.white30
+                                  : Colors.black26,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1,
                             ),
@@ -196,9 +203,28 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
                     : null,
               ),
             ),
+            if (_capacity != null) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  VeilBadge(
+                    label: '${_capacity!.width}×${_capacity!.height} PX',
+                    icon: Icons.image_search_rounded,
+                    color: themeColor,
+                    isDark: widget.isDark,
+                  ),
+                  VeilBadge(
+                    label: 'MAX ${_capacity!.maxPayloadBytes} BYTES',
+                    icon: Icons.storage_rounded,
+                    color: VeilBrand.veilTeal,
+                    isDark: widget.isDark,
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
-
-            // Password field
             VeilTextField(
               isDark: widget.isDark,
               label: 'Password',
@@ -206,20 +232,26 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
               prefixIcon: Icons.lock_outline,
               controller: _passController,
             ),
-            const SizedBox(height: 30),
-
-            // Extract button
+            const SizedBox(height: 24),
             VeilButton(
               isDark: widget.isDark,
               label: 'EXTRACT HIDDEN MESSAGE',
-              gradient: [themeColor, themeColor.withOpacity(0.7)],
+              icon: Icons.lock_open_rounded,
+              gradient: [themeColor, themeColor.withValues(alpha: 0.7)],
               onTap: _extractMessage,
             ),
-            const SizedBox(height: 30),
-
-            // Extracted message area
+            const SizedBox(height: 24),
             if (_isExtracting)
-              const Center(child: CircularProgressIndicator())
+              VeilLoadingIndicator(
+                isDark: widget.isDark,
+                message: 'Scanning Red-channel LSB coordinates...',
+              )
+            else if (_errorMessage != null)
+              VeilErrorCard(
+                isDark: widget.isDark,
+                message: _errorMessage!,
+                onRetry: _extractMessage,
+              )
             else if (_extractedMessage != null)
               VeilGlassContainer(
                 isDark: widget.isDark,
@@ -242,22 +274,23 @@ class _StegoExtractScreenState extends State<StegoExtractScreen> {
                         IconButton(
                           icon: Icon(
                             _isCopied ? Icons.check : Icons.copy,
-                            color: _isCopied ? Colors.green : themeColor,
+                            color: _isCopied ? VeilBrand.success : themeColor,
                             size: 20,
                           ),
                           onPressed: _copyToClipboard,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 12),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: (widget.isDark ? Colors.white : Colors.black)
-                            .withOpacity(0.05),
+                            .withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(15),
                         border: Border.all(
-                          color: themeColor.withOpacity(0.3),
+                          color: themeColor.withValues(alpha: 0.3),
                         ),
                       ),
                       child: SelectableText(

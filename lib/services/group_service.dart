@@ -53,40 +53,40 @@ class Group {
   Set<String> get allAdmins => {owner, ...admins};
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'owner': owner,
-        'members': members,
-        'createdAt': createdAt.millisecondsSinceEpoch,
-        'avatarPath': avatarPath,
-        'isMuted': isMuted,
-        'lastMessage': lastMessage,
-        'lastMessageTime': lastMessageTime,
-        'unreadCount': unreadCount,
-        'admins': admins,
-        'mutedUntil': mutedUntil,
-        'wallpaper': wallpaper,
-        'pinnedMessage': pinnedMessage,
-      };
+    'id': id,
+    'name': name,
+    'owner': owner,
+    'members': members,
+    'createdAt': createdAt.millisecondsSinceEpoch,
+    'avatarPath': avatarPath,
+    'isMuted': isMuted,
+    'lastMessage': lastMessage,
+    'lastMessageTime': lastMessageTime,
+    'unreadCount': unreadCount,
+    'admins': admins,
+    'mutedUntil': mutedUntil,
+    'wallpaper': wallpaper,
+    'pinnedMessage': pinnedMessage,
+  };
 
   factory Group.fromJson(Map<String, dynamic> json) => Group(
-        id: json['id'],
-        name: json['name'],
-        owner: json['owner'],
-        members: List<String>.from(json['members']),
-        createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt']),
-        avatarPath: json['avatarPath'],
-        isMuted: json['isMuted'] ?? false,
-        lastMessage: json['lastMessage'],
-        lastMessageTime: json['lastMessageTime'],
-        unreadCount: json['unreadCount'] ?? 0,
-        admins: json['admins'] == null
-            ? <String>[]
-            : List<String>.from(json['admins']),
-        mutedUntil: json['mutedUntil'] ?? 0,
-        wallpaper: json['wallpaper'],
-        pinnedMessage: json['pinnedMessage'],
-      );
+    id: json['id'],
+    name: json['name'],
+    owner: json['owner'],
+    members: List<String>.from(json['members']),
+    createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt']),
+    avatarPath: json['avatarPath'],
+    isMuted: json['isMuted'] ?? false,
+    lastMessage: json['lastMessage'],
+    lastMessageTime: json['lastMessageTime'],
+    unreadCount: json['unreadCount'] ?? 0,
+    admins: json['admins'] == null
+        ? <String>[]
+        : List<String>.from(json['admins']),
+    mutedUntil: json['mutedUntil'] ?? 0,
+    wallpaper: json['wallpaper'],
+    pinnedMessage: json['pinnedMessage'],
+  );
 
   /// Safely decodes the `admins` column, which is stored as a JSON array.
   static List<String> decodeAdmins(Object? raw) {
@@ -100,7 +100,6 @@ class Group {
   }
 }
 
-
 class GroupService {
   static final GroupService _instance = GroupService._internal();
   factory GroupService() => _instance;
@@ -110,7 +109,8 @@ class GroupService {
 
   final _groupsController = StreamController<List<Group>>.broadcast();
   final _groupUpdateController = StreamController<Group>.broadcast();
-  final _groupMessageController = StreamController<Map<String, dynamic>>.broadcast();
+  final _groupMessageController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   List<Group> _groups = [];
   StreamSubscription? _messageSub;
@@ -119,7 +119,8 @@ class GroupService {
 
   Stream<List<Group>> get groupsStream => _groupsController.stream;
   Stream<Group> get groupUpdateStream => _groupUpdateController.stream;
-  Stream<Map<String, dynamic>> get groupMessageStream => _groupMessageController.stream;
+  Stream<Map<String, dynamic>> get groupMessageStream =>
+      _groupMessageController.stream;
   List<Group> get groups => List.unmodifiable(_groups);
 
   Future<void> loadGroups(String currentUser) async {
@@ -131,27 +132,33 @@ class GroupService {
     try {
       final groupMaps = await DatabaseService().getGroups(currentUser);
       _loadedForUser = currentUser;
-      debugPrint('📂 Loaded ${groupMaps.length} groups from DB for $currentUser');
+      debugPrint(
+        '📂 Loaded ${groupMaps.length} groups from DB for $currentUser',
+      );
       if (groupMaps.isNotEmpty) {
         debugPrint('   Group IDs: ${groupMaps.map((g) => g['id']).toList()}');
       }
-      final dbGroups = groupMaps.map((g) => Group(
-        id: g['id'],
-        name: g['name'],
-        owner: g['owner'],
-        members: List<String>.from(g['members']),
-        createdAt: DateTime.fromMillisecondsSinceEpoch(g['createdAt']),
-        avatarPath: g['avatarPath'],
-        isMuted: g['isMuted'] == 1,
-        lastMessage: g['lastMessage'],
-        lastMessageTime: g['lastMessageTime'],
-        unreadCount: g['unreadCount'],
-        // ✅ hydrate the new admin/mute/wallpaper columns (null-safe)
-        admins: Group.decodeAdmins(g['admins']),
-        mutedUntil: (g['mutedUntil'] as num?)?.toInt() ?? 0,
-        wallpaper: g['wallpaper'] as String?,
-        pinnedMessage: g['pinnedMessage'] as String?,
-      )).toList();
+      final dbGroups = groupMaps
+          .map(
+            (g) => Group(
+              id: g['id'],
+              name: g['name'],
+              owner: g['owner'],
+              members: List<String>.from(g['members']),
+              createdAt: DateTime.fromMillisecondsSinceEpoch(g['createdAt']),
+              avatarPath: g['avatarPath'],
+              isMuted: g['isMuted'] == 1,
+              lastMessage: g['lastMessage'],
+              lastMessageTime: g['lastMessageTime'],
+              unreadCount: g['unreadCount'],
+              // ✅ hydrate the new admin/mute/wallpaper columns (null-safe)
+              admins: Group.decodeAdmins(g['admins']),
+              mutedUntil: (g['mutedUntil'] as num?)?.toInt() ?? 0,
+              wallpaper: g['wallpaper'] as String?,
+              pinnedMessage: g['pinnedMessage'] as String?,
+            ),
+          )
+          .toList();
 
       final dbMap = {for (var g in dbGroups) g.id: g};
 
@@ -303,18 +310,20 @@ class GroupService {
         group.members.add(newMember);
         _groupUpdateController.add(group);
         _groupsController.add(_groups);
-        DatabaseService().updateGroup(
-          accountOwner: NetworkService().currentUser!,
-          id: groupId,
-          name: group.name,
-          avatarPath: group.avatarPath,
-          isMuted: group.isMuted,
-          lastMessage: group.lastMessage,
-          lastMessageTime: group.lastMessageTime,
-          unreadCount: group.unreadCount,
-        ).catchError((e) {
-          debugPrint('❌ Failed to update group after member added: $e');
-        });
+        DatabaseService()
+            .updateGroup(
+              accountOwner: NetworkService().currentUser!,
+              id: groupId,
+              name: group.name,
+              avatarPath: group.avatarPath,
+              isMuted: group.isMuted,
+              lastMessage: group.lastMessage,
+              lastMessageTime: group.lastMessageTime,
+              unreadCount: group.unreadCount,
+            )
+            .catchError((e) {
+              debugPrint('❌ Failed to update group after member added: $e');
+            });
       }
     } catch (e) {
       debugPrint('⚠️ Member added for unknown group $groupId');
@@ -331,24 +340,28 @@ class GroupService {
       group.members.remove(removedMember);
       _groupUpdateController.add(group);
       _groupsController.add(_groups);
-      DatabaseService().updateGroup(
-        accountOwner: NetworkService().currentUser!,
-        id: groupId,
-        name: group.name,
-        avatarPath: group.avatarPath,
-        isMuted: group.isMuted,
-        lastMessage: group.lastMessage,
-        lastMessageTime: group.lastMessageTime,
-        unreadCount: group.unreadCount,
-      ).catchError((e) {
-        debugPrint('❌ Failed to update group after member removed: $e');
-      });
+      DatabaseService()
+          .updateGroup(
+            accountOwner: NetworkService().currentUser!,
+            id: groupId,
+            name: group.name,
+            avatarPath: group.avatarPath,
+            isMuted: group.isMuted,
+            lastMessage: group.lastMessage,
+            lastMessageTime: group.lastMessageTime,
+            unreadCount: group.unreadCount,
+          )
+          .catchError((e) {
+            debugPrint('❌ Failed to update group after member removed: $e');
+          });
       if (removedMember == currentUser) {
         _groups.remove(group);
         _groupsController.add(_groups);
-        DatabaseService().deleteGroup(NetworkService().currentUser!, groupId).catchError((e) {
-          debugPrint('❌ Failed to delete group after leaving: $e');
-        });
+        DatabaseService()
+            .deleteGroup(NetworkService().currentUser!, groupId)
+            .catchError((e) {
+              debugPrint('❌ Failed to delete group after leaving: $e');
+            });
       }
     } catch (e) {
       debugPrint('⚠️ Member removed for unknown group $groupId');
@@ -478,7 +491,8 @@ class GroupService {
     if (group == null || me == null) return false;
     if (!isAdmin(group, me)) return false;
     if (!group.members.contains(username)) return false;
-    if (group.admins.contains(username) || username == group.owner) return false;
+    if (group.admins.contains(username) || username == group.owner)
+      return false;
 
     group.admins.add(username);
     _emit(group);
@@ -586,9 +600,11 @@ class GroupService {
     final groupId = data['groupId'];
     _groups.removeWhere((g) => g.id == groupId);
     _groupsController.add(_groups);
-    DatabaseService().deleteGroup(NetworkService().currentUser!, groupId).catchError((e) {
-      debugPrint('❌ Failed to delete group after deletion: $e');
-    });
+    DatabaseService()
+        .deleteGroup(NetworkService().currentUser!, groupId)
+        .catchError((e) {
+          debugPrint('❌ Failed to delete group after deletion: $e');
+        });
   }
 
   void _handleGroupUpdated(Map<String, dynamic> data) {
@@ -600,48 +616,62 @@ class GroupService {
       if (data.containsKey('isMuted')) group.isMuted = data['isMuted'];
       _groupUpdateController.add(group);
       _groupsController.add(_groups);
-      DatabaseService().updateGroup(
-        accountOwner: NetworkService().currentUser!,
-        id: groupId,
-        name: group.name,
-        avatarPath: group.avatarPath,
-        isMuted: group.isMuted,
-        lastMessage: group.lastMessage,
-        lastMessageTime: group.lastMessageTime,
-        unreadCount: group.unreadCount,
-      ).catchError((e) {
-        debugPrint('❌ Failed to update group after update: $e');
-      });
+      DatabaseService()
+          .updateGroup(
+            accountOwner: NetworkService().currentUser!,
+            id: groupId,
+            name: group.name,
+            avatarPath: group.avatarPath,
+            isMuted: group.isMuted,
+            lastMessage: group.lastMessage,
+            lastMessageTime: group.lastMessageTime,
+            unreadCount: group.unreadCount,
+          )
+          .catchError((e) {
+            debugPrint('❌ Failed to update group after update: $e');
+          });
     } catch (e) {
       debugPrint('⚠️ Group update for unknown group $groupId');
     }
   }
 
-  Future<String> _saveGroupMediaToFile(String rawData, String type, String sender) async {
+  Future<String> _saveGroupMediaToFile(
+    String rawData,
+    String type,
+    String sender,
+  ) async {
     try {
-      if (rawData.startsWith('/')) return rawData; 
-      
+      if (rawData.startsWith('/')) return rawData;
+
       final dir = await getApplicationDocumentsDirectory();
       final subDir = Directory('${dir.path}/veil_chat_files');
       if (!await subDir.exists()) await subDir.create(recursive: true);
 
-      String ext = type == 'IMAGE' ? '.jpg' : type == 'AUDIO' ? '.m4a' : '.dat';
+      String ext = type == 'IMAGE'
+          ? '.jpg'
+          : type == 'AUDIO'
+          ? '.m4a'
+          : '.dat';
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${subDir.path}/group_${type.toLowerCase()}_${sender}_$timestamp$ext');
+      final file = File(
+        '${subDir.path}/group_${type.toLowerCase()}_${sender}_$timestamp$ext',
+      );
 
       final cleanData = rawData.replaceAll(RegExp(r'\s'), '');
-      
-      final isHex = RegExp(r'^[0-9a-fA-F]+$').hasMatch(cleanData) && cleanData.length % 2 == 0;
-      
+
+      final isHex =
+          RegExp(r'^[0-9a-fA-F]+$').hasMatch(cleanData) &&
+          cleanData.length % 2 == 0;
+
       if (isHex) {
-        await file.writeAsString(rawData); 
+        await file.writeAsString(rawData);
       } else {
         try {
           final bytes = base64Decode(cleanData);
           await file.writeAsBytes(bytes);
         } catch (e) {
           debugPrint('❌ Base64 decode failed, falling back to text: $e');
-          await file.writeAsString(rawData); 
+          await file.writeAsString(rawData);
         }
       }
       return file.path;
@@ -661,7 +691,7 @@ class GroupService {
   }) async {
     final currentUser = NetworkService().currentUser;
     if (currentUser == null) return;
-    
+
     final msgId = messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
@@ -673,7 +703,7 @@ class GroupService {
     NetworkService().sendPacket('GRP_MSG', {
       'groupId': groupId,
       'type': type,
-      'content': content, 
+      'content': content,
       'extra': extra,
       'metadata': metadata,
       'messageId': msgId,
@@ -686,7 +716,7 @@ class GroupService {
       groupId: groupId,
       sender: currentUser,
       type: type,
-      content: savedContent, 
+      content: savedContent,
       isMe: true,
       messageId: msgId,
       timestamp: timestamp,
@@ -739,7 +769,9 @@ class GroupService {
       _groupUpdateController.add(group);
       _groupsController.add(_groups);
     } catch (e) {
-      debugPrint('⚠️ Group message for unknown group $groupId - reloading groups...');
+      debugPrint(
+        '⚠️ Group message for unknown group $groupId - reloading groups...',
+      );
       // Group list may not be loaded yet - reload from DB
       final user = NetworkService().currentUser;
       if (user != null) await loadGroups(user);
@@ -781,7 +813,6 @@ class GroupService {
           lastMessage: (type == 'TEXT') ? content : '📁 Media',
           lastMessageTime: timestamp,
           unreadCount: group.unreadCount,
-
         );
       } else {
         await DatabaseService().saveGroupMessage(
@@ -809,9 +840,11 @@ class GroupService {
       group.unreadCount = 0;
       _groupUpdateController.add(group);
       _groupsController.add(_groups);
-      DatabaseService().markGroupAsRead(NetworkService().currentUser!, groupId).catchError((e) {
-        debugPrint('❌ Failed to mark group as read: $e');
-      });
+      DatabaseService()
+          .markGroupAsRead(NetworkService().currentUser!, groupId)
+          .catchError((e) {
+            debugPrint('❌ Failed to mark group as read: $e');
+          });
     } catch (e) {
       debugPrint('⚠️ Mark read for unknown group $groupId');
     }
@@ -843,14 +876,17 @@ class GroupService {
     _groupMessageController.close();
     _groups.clear();
   }
+
   String _previewText(String type, String content) {
     if (type == 'IMAGE') return '📷 Photo';
     if (type == 'AUDIO') return '🎤 Voice message';
-    if (type == 'FILE')  return '📁 File';
+    if (type == 'FILE') return '📁 File';
     // Never show encrypted hex, file paths, or .enc content
-    if (content.startsWith('/') || content.contains('.enc')) return '💬 Message';
-    if (content.length > 30 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(content.trim())) return '💬 Message';
+    if (content.startsWith('/') || content.contains('.enc'))
+      return '💬 Message';
+    if (content.length > 30 &&
+        RegExp(r'^[0-9a-fA-F]+$').hasMatch(content.trim()))
+      return '💬 Message';
     return content;
   }
-
 }

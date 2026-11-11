@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -37,7 +36,9 @@ class FcmService {
 
       // 3. Request permission
       final settings = await _fcm!.requestPermission(
-        alert: true, badge: true, sound: true,
+        alert: true,
+        badge: true,
+        sound: true,
       );
       if (settings.authorizationStatus != AuthorizationStatus.authorized) {
         debugPrint('⚠️ FCM permission not granted');
@@ -93,7 +94,8 @@ class FcmService {
 
   void _handleForeground(RemoteMessage message) {
     NotificationService().showMessageNotification(
-      sender: message.data['sender'] ?? message.notification?.title ?? 'VeilChat',
+      sender:
+          message.data['sender'] ?? message.notification?.title ?? 'VeilChat',
       message: message.notification?.body ?? '',
       isDark: true,
     );
@@ -102,12 +104,15 @@ class FcmService {
   void _navigateFromMessage(RemoteMessage message) {
     final sender = message.data['sender'];
     if (sender != null) {
-      navigatorKey.currentState?.pushNamed('/chat', arguments: {
-        'contactName': sender,
-        'isDark': true,
-        'sharedKey': '',
-        'myUsername': '',
-      });
+      navigatorKey.currentState?.pushNamed(
+        '/chat',
+        arguments: {
+          'contactName': sender,
+          'isDark': true,
+          'sharedKey': '',
+          'myUsername': '',
+        },
+      );
     }
   }
 

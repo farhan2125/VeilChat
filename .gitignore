@@ -74,18 +74,39 @@ dist/
 # VeilChat Sensitive Runtime Data & Media Storage
 # ----------------------------------------------------------------------------
 # Runtime user databases containing real passwords & chats (use .example templates)
+server_users.json
+server_offline.json
+server_groups.json
+server_profiles.json
 server/server_users.json
 server/server_offline.json
 server/server_groups.json
 server/server_profiles.json
 
 # Out-of-band uploaded encrypted user media
+media_uploads/
 server/media_uploads/
 
 # Local archives and test dumps
 lib.zip
 server.zip
 check_veilchat.py
+
+# ----------------------------------------------------------------------------
+# AI Agent Toolkits, Virtual Environments & Local Reports
+# ----------------------------------------------------------------------------
+.ai-toolkit/
+.agents/
+skills-lock.json
+*_REPORT.md
+FINAL_*.md
+MISSION_*.md
+QA_*.md
+SECURITY_*.md
+TOOLKIT_*.md
+VEILCHAT_ARCHITECTURE_AND_PRODUCT_AUDIT.md
+VEILCHAT_DESIGN_SYSTEM.md
+KNOWN_LIMITATIONS.md
 
 # ----------------------------------------------------------------------------
 # Sensitive Credentials & Signing Keys

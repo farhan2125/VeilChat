@@ -21,10 +21,14 @@ class SoundService {
   Timer? _recordingTimer;
   int _recordingSeconds = 0;
 
-  final StreamController<int> _recordingTimeController = StreamController<int>.broadcast();
-  final StreamController<PlayerState> _playerStateController = StreamController<PlayerState>.broadcast();
-  final StreamController<Duration> _playerPositionController = StreamController<Duration>.broadcast();
-  final StreamController<Duration> _playerDurationController = StreamController<Duration>.broadcast();
+  final StreamController<int> _recordingTimeController =
+      StreamController<int>.broadcast();
+  final StreamController<PlayerState> _playerStateController =
+      StreamController<PlayerState>.broadcast();
+  final StreamController<Duration> _playerPositionController =
+      StreamController<Duration>.broadcast();
+  final StreamController<Duration> _playerDurationController =
+      StreamController<Duration>.broadcast();
 
   Stream<int> get recordingTimeStream => _recordingTimeController.stream;
   Stream<PlayerState> get playerStateStream => _playerStateController.stream;
@@ -105,9 +109,15 @@ class SoundService {
   Future<void> playAudio(String filePath, {bool isAsset = false}) async {
     try {
       await _audioPlayer.stop();
-      _audioPlayer.onPlayerStateChanged.listen((state) => _playerStateController.add(state));
-      _audioPlayer.onPositionChanged.listen((pos) => _playerPositionController.add(pos));
-      _audioPlayer.onDurationChanged.listen((dur) => _playerDurationController.add(dur));
+      _audioPlayer.onPlayerStateChanged.listen(
+        (state) => _playerStateController.add(state),
+      );
+      _audioPlayer.onPositionChanged.listen(
+        (pos) => _playerPositionController.add(pos),
+      );
+      _audioPlayer.onDurationChanged.listen(
+        (dur) => _playerDurationController.add(dur),
+      );
       if (isAsset) {
         await _audioPlayer.play(AssetSource(filePath));
       } else {
@@ -122,7 +132,8 @@ class SoundService {
   Future<void> pauseAudio() async => await _audioPlayer.pause();
   Future<void> resumeAudio() async => await _audioPlayer.resume();
   Future<void> stopAudio() async => await _audioPlayer.stop();
-  Future<void> seekAudio(Duration position) async => await _audioPlayer.seek(position);
+  Future<void> seekAudio(Duration position) async =>
+      await _audioPlayer.seek(position);
 
   String formatDuration(Duration duration) {
     final minutes = duration.inMinutes;

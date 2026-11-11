@@ -1,9 +1,7 @@
 import 'dart:ui';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:sqflite/sqflite.dart';
@@ -69,14 +67,20 @@ class _BackupScreenState extends State<BackupScreen> {
         final result = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+            backgroundColor: widget.isDark
+                ? const Color(0xFF0F172A)
+                : Colors.white,
             title: Text(
               'Backup Created',
-              style: TextStyle(color: widget.isDark ? Colors.white : Colors.black),
+              style: TextStyle(
+                color: widget.isDark ? Colors.white : Colors.black,
+              ),
             ),
             content: Text(
               'Do you want to share the backup file?',
-              style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black87),
+              style: TextStyle(
+                color: widget.isDark ? Colors.white70 : Colors.black87,
+              ),
             ),
             actions: [
               TextButton(
@@ -91,7 +95,9 @@ class _BackupScreenState extends State<BackupScreen> {
           ),
         );
         if (result == true) {
-          await Share.shareXFiles([XFile(backupPath)], text: 'VeilChat Database Backup');
+          await Share.shareXFiles([
+            XFile(backupPath),
+          ], text: 'VeilChat Database Backup');
         }
       }
     } catch (e) {
@@ -123,15 +129,25 @@ class _BackupScreenState extends State<BackupScreen> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+          backgroundColor: widget.isDark
+              ? const Color(0xFF0F172A)
+              : Colors.white,
           title: Text('Restore Backup?'),
           content: Text(
             'This will REPLACE your current database. All unsynced messages will be lost.\n\nContinue?',
-            style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black87),
+            style: TextStyle(
+              color: widget.isDark ? Colors.white70 : Colors.black87,
+            ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('RESTORE', style: TextStyle(color: Colors.red))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('RESTORE', style: TextStyle(color: Colors.red)),
+            ),
           ],
         ),
       );
@@ -153,7 +169,10 @@ class _BackupScreenState extends State<BackupScreen> {
       await _loadStats();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Database restored successfully'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('✅ Database restored successfully'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
       _showError('Restore failed: $e');
@@ -205,7 +224,9 @@ class _BackupScreenState extends State<BackupScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
-              color: (widget.isDark ? Colors.black : Colors.white).withOpacity(0.2),
+              color: (widget.isDark ? Colors.black : Colors.white).withValues(
+                alpha: 0.2,
+              ),
             ),
           ),
         ),
@@ -242,10 +263,13 @@ class _BackupScreenState extends State<BackupScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: themeColor.withOpacity(0.1),
+                                color: themeColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(15),
                               ),
-                              child: Icon(Icons.storage_rounded, color: themeColor),
+                              child: Icon(
+                                Icons.storage_rounded,
+                                color: themeColor,
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -257,7 +281,9 @@ class _BackupScreenState extends State<BackupScreen> {
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: widget.isDark ? Colors.white : Colors.black,
+                                      color: widget.isDark
+                                          ? Colors.white
+                                          : Colors.black,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -358,7 +384,9 @@ class _BackupScreenState extends State<BackupScreen> {
                                   Text(
                                     'Auto-cleanup',
                                     style: TextStyle(
-                                      color: widget.isDark ? Colors.white : Colors.black,
+                                      color: widget.isDark
+                                          ? Colors.white
+                                          : Colors.black,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -380,7 +408,7 @@ class _BackupScreenState extends State<BackupScreen> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: themeColor.withOpacity(0.1),
+                                color: themeColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: DropdownButton<int>(
@@ -389,8 +417,10 @@ class _BackupScreenState extends State<BackupScreen> {
                                     ? const Color(0xFF0F172A)
                                     : Colors.white,
                                 underline: Container(),
-                                icon: Icon(Icons.arrow_drop_down,
-                                    color: themeColor),
+                                icon: Icon(
+                                  Icons.arrow_drop_down,
+                                  color: themeColor,
+                                ),
                                 items: [7, 14, 30, 60, 90].map((days) {
                                   return DropdownMenuItem(
                                     value: days,
@@ -415,7 +445,10 @@ class _BackupScreenState extends State<BackupScreen> {
                         VeilButton(
                           isDark: widget.isDark,
                           label: 'Clean Cache Now',
-                          gradient: [themeColor, themeColor.withOpacity(0.7)],
+                          gradient: [
+                            themeColor,
+                            themeColor.withValues(alpha: 0.7),
+                          ],
                           onTap: _cleanupCache,
                         ),
                       ],
@@ -473,7 +506,7 @@ class _BackupScreenState extends State<BackupScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.1),
+                color: themeColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: isLoading

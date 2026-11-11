@@ -113,12 +113,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _removeAvatar() async {
-    setState(() => _avatarPath = null);
-    await _saveProfile();
-    await _sendProfileToServer();
-  }
-
   void _toggleEdit() {
     setState(() => _isEditing = !_isEditing);
     if (!_isEditing) {
@@ -141,7 +135,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
-              color: (widget.isDark ? Colors.black : Colors.white).withOpacity(0.2),
+              color: (widget.isDark ? Colors.black : Colors.white).withValues(
+                alpha: 0.2,
+              ),
             ),
           ),
         ),
@@ -188,14 +184,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             border: Border.all(color: themeColor, width: 2),
                             boxShadow: [
                               BoxShadow(
-                                color: themeColor.withOpacity(0.3),
+                                color: themeColor.withValues(alpha: 0.3),
                                 blurRadius: 20,
                               ),
                             ],
                           ),
                           child: CircleAvatar(
                             radius: 58,
-                            backgroundColor: themeColor.withOpacity(0.1),
+                            backgroundColor: themeColor.withValues(alpha: 0.1),
                             backgroundImage: _avatarPath != null
                                 ? FileImage(File(_avatarPath!))
                                 : null,
@@ -222,12 +218,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: themeColor,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: widget.isDark ? Colors.black : Colors.white,
+                                  color: widget.isDark
+                                      ? Colors.black
+                                      : Colors.white,
                                   width: 2,
                                 ),
                               ),
                               child: IconButton(
-                                icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                icon: const Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                                 onPressed: _pickAvatar,
                                 padding: const EdgeInsets.all(8),
                               ),
@@ -305,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     VeilButton(
                       isDark: widget.isDark,
                       label: 'Save Profile',
-                      gradient: [themeColor, themeColor.withOpacity(0.7)],
+                      gradient: [themeColor, themeColor.withValues(alpha: 0.7)],
                       onTap: () {
                         _toggleEdit();
                       },
@@ -334,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: themeColor.withOpacity(0.1),
+            color: themeColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: themeColor, size: 20),
@@ -381,7 +383,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ? (widget.isDark ? Colors.white38 : Colors.black38)
                         : (widget.isDark ? Colors.white : Colors.black),
                     fontSize: 16,
-                    fontStyle: value.isEmpty ? FontStyle.italic : FontStyle.normal,
+                    fontStyle: value.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
                   ),
                 ),
             ],

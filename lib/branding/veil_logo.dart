@@ -30,13 +30,13 @@ class VeilLogo extends StatelessWidget {
   });
 
   const VeilLogo.mark({super.key, this.size = 96, this.animated = false})
-      : variant = VeilLogoVariant.mark;
+    : variant = VeilLogoVariant.mark;
 
   const VeilLogo.wordmark({super.key, this.size = 220, this.animated = false})
-      : variant = VeilLogoVariant.wordmark;
+    : variant = VeilLogoVariant.wordmark;
 
   const VeilLogo.icon({super.key, this.size = 64, this.animated = false})
-      : variant = VeilLogoVariant.icon;
+    : variant = VeilLogoVariant.icon;
 
   String get _asset {
     switch (variant) {
@@ -51,10 +51,10 @@ class VeilLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double width =
-        variant == VeilLogoVariant.wordmark ? size : size;
-    final double height =
-        variant == VeilLogoVariant.wordmark ? size * (180 / 720) : size;
+    final double width = variant == VeilLogoVariant.wordmark ? size : size;
+    final double height = variant == VeilLogoVariant.wordmark
+        ? size * (180 / 720)
+        : size;
 
     Widget child = SvgPicture.asset(
       _asset,
@@ -135,10 +135,7 @@ class _VeilLogoFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.square(size),
-      painter: VeilLogoPainter(),
-    );
+    return CustomPaint(size: Size.square(size), painter: VeilLogoPainter());
   }
 }
 
@@ -278,11 +275,7 @@ class VeilWordmarkText extends StatelessWidget {
   final double fontSize;
   final bool isDark;
 
-  const VeilWordmarkText({
-    super.key,
-    this.fontSize = 24,
-    required this.isDark,
-  });
+  const VeilWordmarkText({super.key, this.fontSize = 24, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -307,9 +300,7 @@ class VeilWordmarkText extends StatelessWidget {
               foreground: Paint()
                 ..shader = const LinearGradient(
                   colors: VeilBrand.primaryGradient,
-                ).createShader(
-                  Rect.fromLTWH(0, 0, fontSize * 3, fontSize),
-                ),
+                ).createShader(Rect.fromLTWH(0, 0, fontSize * 3, fontSize)),
             ),
           ),
         ],
@@ -343,10 +334,8 @@ class _VeilEncryptionRingState extends State<VeilEncryptionRing>
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat();
+    _c = AnimationController(vsync: this, duration: const Duration(seconds: 6))
+      ..repeat();
   }
 
   @override

@@ -41,9 +41,15 @@ class VeilFeedback {
     if (messenger == null) return;
 
     final (Color color, IconData icon) = switch (kind) {
-      VeilFeedbackKind.success => (VeilBrand.success, Icons.check_circle_rounded),
+      VeilFeedbackKind.success => (
+        VeilBrand.success,
+        Icons.check_circle_rounded,
+      ),
       VeilFeedbackKind.error => (VeilBrand.danger, Icons.error_rounded),
-      VeilFeedbackKind.warning => (VeilBrand.warning, Icons.warning_amber_rounded),
+      VeilFeedbackKind.warning => (
+        VeilBrand.warning,
+        Icons.warning_amber_rounded,
+      ),
       VeilFeedbackKind.info => (VeilBrand.info, Icons.info_rounded),
     };
 
@@ -108,7 +114,8 @@ class VeilFeedback {
     bool destructive = false,
   }) async {
     HapticFeedback.mediumImpact();
-    final color = accent ?? (destructive ? VeilBrand.danger : VeilBrand.veilTeal);
+    final color =
+        accent ?? (destructive ? VeilBrand.danger : VeilBrand.veilTeal);
 
     final result = await showDialog<bool>(
       context: context,

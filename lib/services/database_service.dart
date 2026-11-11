@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
@@ -152,7 +151,9 @@ class DatabaseService {
         pinnedAt INTEGER
       )
     ''');
-    await db.execute('CREATE INDEX idx_account_contact ON messages(accountOwner, contact)');
+    await db.execute(
+      'CREATE INDEX idx_account_contact ON messages(accountOwner, contact)',
+    );
     await db.execute('CREATE INDEX idx_timestamp ON messages(timestamp)');
     await db.execute('CREATE INDEX idx_sender ON messages(sender)');
     await db.execute('CREATE INDEX idx_messageId ON messages(messageId)');
@@ -243,8 +244,12 @@ class DatabaseService {
         hiddenKey TEXT
       )
     ''');
-    await db.execute('CREATE INDEX idx_group_messages_group ON group_messages(groupId, accountOwner)');
-    await db.execute('CREATE INDEX idx_group_messages_timestamp ON group_messages(timestamp)');
+    await db.execute(
+      'CREATE INDEX idx_group_messages_group ON group_messages(groupId, accountOwner)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_group_messages_timestamp ON group_messages(timestamp)',
+    );
 
     // ----- USER PROFILE (v7) -----
     await db.execute('''
@@ -279,8 +284,12 @@ class DatabaseService {
     if (oldVersion < 3) {
       try {
         await db.execute('ALTER TABLE messages ADD COLUMN metadata TEXT');
-        await db.execute('ALTER TABLE messages ADD COLUMN status TEXT DEFAULT "sent"');
-        await db.execute('ALTER TABLE messages ADD COLUMN read INTEGER DEFAULT 0');
+        await db.execute(
+          'ALTER TABLE messages ADD COLUMN status TEXT DEFAULT "sent"',
+        );
+        await db.execute(
+          'ALTER TABLE messages ADD COLUMN read INTEGER DEFAULT 0',
+        );
       } catch (e) {
         debugPrint('Upgrade v3: columns may already exist');
       }
@@ -288,7 +297,9 @@ class DatabaseService {
     // v3 → v4: delivered, messageId, index
     if (oldVersion < 4) {
       try {
-        await db.execute('ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0');
+        await db.execute(
+          'ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0',
+        );
         await db.execute('ALTER TABLE messages ADD COLUMN messageId TEXT');
         await db.execute('CREATE INDEX idx_messageId ON messages(messageId)');
       } catch (e) {
@@ -313,7 +324,9 @@ class DatabaseService {
             accountOwner TEXT NOT NULL
           )
         ''');
-        await db.execute('CREATE INDEX idx_groups_account ON groups(accountOwner)');
+        await db.execute(
+          'CREATE INDEX idx_groups_account ON groups(accountOwner)',
+        );
         await db.execute('''
           CREATE TABLE group_messages(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -330,8 +343,12 @@ class DatabaseService {
             FOREIGN KEY(groupId) REFERENCES groups(id) ON DELETE CASCADE
           )
         ''');
-        await db.execute('CREATE INDEX idx_group_messages_group ON group_messages(groupId)');
-        await db.execute('CREATE INDEX idx_group_messages_timestamp ON group_messages(timestamp)');
+        await db.execute(
+          'CREATE INDEX idx_group_messages_group ON group_messages(groupId)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_group_messages_timestamp ON group_messages(timestamp)',
+        );
       } catch (e) {
         debugPrint('Upgrade v5: error creating group tables – $e');
       }
@@ -339,8 +356,12 @@ class DatabaseService {
     // v5 → v6: add steganography columns to group_messages
     if (oldVersion < 6) {
       try {
-        await db.execute('ALTER TABLE group_messages ADD COLUMN isHidden INTEGER DEFAULT 0');
-        await db.execute('ALTER TABLE group_messages ADD COLUMN hiddenKey TEXT');
+        await db.execute(
+          'ALTER TABLE group_messages ADD COLUMN isHidden INTEGER DEFAULT 0',
+        );
+        await db.execute(
+          'ALTER TABLE group_messages ADD COLUMN hiddenKey TEXT',
+        );
         debugPrint('Upgrade v6: added steganography columns');
       } catch (e) {
         debugPrint('Upgrade v6: columns may already exist – $e');
@@ -369,7 +390,9 @@ class DatabaseService {
     }
     // v7 → v8: fix group overwrites – recreate tables with composite PK
     if (oldVersion < 8) {
-      debugPrint('⚠️ Upgrading to v8: dropping old group tables and recreating with composite PK');
+      debugPrint(
+        '⚠️ Upgrading to v8: dropping old group tables and recreating with composite PK',
+      );
       try {
         // Drop old tables
         await db.execute('DROP TABLE IF EXISTS group_messages');
@@ -391,7 +414,9 @@ class DatabaseService {
             PRIMARY KEY (id, accountOwner)
           )
         ''');
-        await db.execute('CREATE INDEX idx_groups_account ON groups(accountOwner)');
+        await db.execute(
+          'CREATE INDEX idx_groups_account ON groups(accountOwner)',
+        );
         // Recreate group_messages with accountOwner
         await db.execute('''
           CREATE TABLE group_messages(
@@ -411,8 +436,12 @@ class DatabaseService {
             hiddenKey TEXT
           )
         ''');
-        await db.execute('CREATE INDEX idx_group_messages_group ON group_messages(groupId, accountOwner)');
-        await db.execute('CREATE INDEX idx_group_messages_timestamp ON group_messages(timestamp)');
+        await db.execute(
+          'CREATE INDEX idx_group_messages_group ON group_messages(groupId, accountOwner)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_group_messages_timestamp ON group_messages(timestamp)',
+        );
         debugPrint('✅ v8 upgrade completed – groups table recreated');
       } catch (e) {
         debugPrint('❌ v8 upgrade failed: $e');
@@ -459,7 +488,9 @@ class DatabaseService {
           limit: 1,
         );
         if (existing.isNotEmpty) {
-          debugPrint('⚠️ Message with id $messageId already exists, skipping insert');
+          debugPrint(
+            '⚠️ Message with id $messageId already exists, skipping insert',
+          );
           return existing.first['id'] as int;
         }
       } catch (e) {
@@ -496,42 +527,47 @@ class DatabaseService {
   }
 
   Future<List<Map<String, dynamic>>> getMessagesForContact(
-      String owner,
-      String contact, {
-      int limit = 100,
-      int offset = 0,
-    }) async {
-      final db = await database;
-      try {
-        final messages = await db.query(
-          'messages',
-          where: 'accountOwner = ? AND contact = ?',
-          whereArgs: [owner, contact],
-          orderBy: 'timestamp ASC',
-          limit: limit,
-          offset: offset,
-        );
-        return messages.map((msg) {
-          final mutableMsg = Map<String, dynamic>.from(msg);
-          if (mutableMsg['metadata'] != null && mutableMsg['metadata'] is String) {
-            mutableMsg['metadata'] = _jsonToMap(mutableMsg['metadata'] as String);
-          }
-          return mutableMsg;
-        }).toList();
-      } catch (e) {
-        debugPrint('⚠️ Database getMessagesForContact error (possibly row too big): $e');
-        // Agar row too big ki wajah se crash ho, toh pichli chat ko delete karna behtar hai
-        // taake chat open ho sakay.
-        if (e.toString().contains("Row too big to fit into CursorWindow")) {
-            debugPrint('🗑️ Deleting corrupted large messages to recover chat.');
-            await deleteMessagesForContact(owner, contact);
+    String owner,
+    String contact, {
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final db = await database;
+    try {
+      final messages = await db.query(
+        'messages',
+        where: 'accountOwner = ? AND contact = ?',
+        whereArgs: [owner, contact],
+        orderBy: 'timestamp ASC',
+        limit: limit,
+        offset: offset,
+      );
+      return messages.map((msg) {
+        final mutableMsg = Map<String, dynamic>.from(msg);
+        if (mutableMsg['metadata'] != null &&
+            mutableMsg['metadata'] is String) {
+          mutableMsg['metadata'] = _jsonToMap(mutableMsg['metadata'] as String);
         }
-        return []; // Return empty list instead of crashing
+        return mutableMsg;
+      }).toList();
+    } catch (e) {
+      debugPrint(
+        '⚠️ Database getMessagesForContact error (possibly row too big): $e',
+      );
+      // Agar row too big ki wajah se crash ho, toh pichli chat ko delete karna behtar hai
+      // taake chat open ho sakay.
+      if (e.toString().contains("Row too big to fit into CursorWindow")) {
+        debugPrint('🗑️ Deleting corrupted large messages to recover chat.');
+        await deleteMessagesForContact(owner, contact);
       }
+      return []; // Return empty list instead of crashing
     }
+  }
+
   Future<List<Map<String, dynamic>>> getLastMessages(String owner) async {
     final db = await database;
-    final result = await db.rawQuery('''
+    final result = await db.rawQuery(
+      '''
       SELECT m1.*
       FROM messages m1
       INNER JOIN (
@@ -542,7 +578,9 @@ class DatabaseService {
       ) m2 ON m1.contact = m2.contact AND m1.timestamp = m2.max_timestamp
       WHERE m1.accountOwner = ?
       ORDER BY m1.timestamp DESC
-    ''', [owner, owner]);
+    ''',
+      [owner, owner],
+    );
     return result;
   }
 
@@ -605,12 +643,16 @@ class DatabaseService {
     );
   }
 
-  Future<void> deleteMessagesForContact(String owner, String contactName) async {
+  Future<void> deleteMessagesForContact(
+    String owner,
+    String contactName,
+  ) async {
     final db = await database;
     final messages = await db.query(
       'messages',
       columns: ['content'],
-      where: 'accountOwner = ? AND contact = ? AND type IN ("IMAGE", "AUDIO", "FILE")',
+      where:
+          'accountOwner = ? AND contact = ? AND type IN ("IMAGE", "AUDIO", "FILE")',
       whereArgs: [owner, contactName],
     );
     await db.delete(
@@ -631,7 +673,6 @@ class DatabaseService {
     }
   }
 
-
   Future<void> pinMessage(String messageId, bool pin) async {
     final db = await database;
     await db.update(
@@ -646,7 +687,9 @@ class DatabaseService {
   }
 
   Future<List<Map<String, dynamic>>> getPinnedMessages(
-      String owner, String contact) async {
+    String owner,
+    String contact,
+  ) async {
     final db = await database;
     final results = await db.query(
       'messages',
@@ -665,14 +708,13 @@ class DatabaseService {
 
   Future<void> deleteMessage(int messageId) async {
     final db = await database;
-    await db.delete(
-      'messages',
-      where: 'id = ?',
-      whereArgs: [messageId],
-    );
+    await db.delete('messages', where: 'id = ?', whereArgs: [messageId]);
   }
 
-  Future<List<Map<String, dynamic>>> searchMessages(String owner, String query) async {
+  Future<List<Map<String, dynamic>>> searchMessages(
+    String owner,
+    String query,
+  ) async {
     final db = await database;
     return await db.query(
       'messages',
@@ -699,22 +741,20 @@ class DatabaseService {
     String? fcmToken,
   }) async {
     final db = await database;
-    final settingsJson = notificationSettings != null ? jsonEncode(notificationSettings) : null;
-    await db.insert(
-      'contacts',
-      {
-        'accountOwner': owner,
-        'contactName': contactName,
-        'publicKey': publicKey,
-        'lastSeen': lastSeen,
-        'isBlocked': isBlocked ? 1 : 0,
-        'isFavorite': isFavorite ? 1 : 0,
-        'chatBackground': chatBackground,
-        'notificationSettings': settingsJson,
-        'fcmToken': fcmToken,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    final settingsJson = notificationSettings != null
+        ? jsonEncode(notificationSettings)
+        : null;
+    await db.insert('contacts', {
+      'accountOwner': owner,
+      'contactName': contactName,
+      'publicKey': publicKey,
+      'lastSeen': lastSeen,
+      'isBlocked': isBlocked ? 1 : 0,
+      'isFavorite': isFavorite ? 1 : 0,
+      'chatBackground': chatBackground,
+      'notificationSettings': settingsJson,
+      'fcmToken': fcmToken,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Map<String, dynamic>>> getContacts(String owner) async {
@@ -727,7 +767,10 @@ class DatabaseService {
     );
   }
 
-  Future<Map<String, dynamic>?> getContact(String owner, String contactName) async {
+  Future<Map<String, dynamic>?> getContact(
+    String owner,
+    String contactName,
+  ) async {
     final db = await database;
     final results = await db.query(
       'contacts',
@@ -738,7 +781,11 @@ class DatabaseService {
     return results.isNotEmpty ? results.first : null;
   }
 
-  Future<void> updateContactLastSeen(String owner, String contactName, int timestamp) async {
+  Future<void> updateContactLastSeen(
+    String owner,
+    String contactName,
+    int timestamp,
+  ) async {
     final db = await database;
     await db.update(
       'contacts',
@@ -748,7 +795,11 @@ class DatabaseService {
     );
   }
 
-  Future<void> updateContactFcmToken(String owner, String contactName, String? token) async {
+  Future<void> updateContactFcmToken(
+    String owner,
+    String contactName,
+    String? token,
+  ) async {
     final db = await database;
     await db.update(
       'contacts',
@@ -758,7 +809,11 @@ class DatabaseService {
     );
   }
 
-  Future<void> toggleContactBlock(String owner, String contactName, bool isBlocked) async {
+  Future<void> toggleContactBlock(
+    String owner,
+    String contactName,
+    bool isBlocked,
+  ) async {
     final db = await database;
     await db.update(
       'contacts',
@@ -768,7 +823,11 @@ class DatabaseService {
     );
   }
 
-  Future<void> toggleContactFavorite(String owner, String contactName, bool isFavorite) async {
+  Future<void> toggleContactFavorite(
+    String owner,
+    String contactName,
+    bool isFavorite,
+  ) async {
     final db = await database;
     await db.update(
       'contacts',
@@ -778,7 +837,11 @@ class DatabaseService {
     );
   }
 
-  Future<void> updateChatBackground(String owner, String contactName, String? backgroundPath) async {
+  Future<void> updateChatBackground(
+    String owner,
+    String contactName,
+    String? backgroundPath,
+  ) async {
     final db = await database;
     await db.update(
       'contacts',
@@ -832,7 +895,10 @@ class DatabaseService {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getAllCallLogs(String owner, {int limit = 100}) async {
+  Future<List<Map<String, dynamic>>> getAllCallLogs(
+    String owner, {
+    int limit = 100,
+  }) async {
     final db = await database;
     return await db.query(
       'call_logs',
@@ -882,19 +948,15 @@ class DatabaseService {
   }) async {
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    await db.insert(
-      'file_cache',
-      {
-        'filePath': filePath,
-        'messageId': messageId,
-        'contact': contact,
-        'fileType': fileType,
-        'size': size,
-        'downloadedAt': now,
-        'accessedAt': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('file_cache', {
+      'filePath': filePath,
+      'messageId': messageId,
+      'contact': contact,
+      'fileType': fileType,
+      'size': size,
+      'downloadedAt': now,
+      'accessedAt': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> updateFileAccessTime(String filePath) async {
@@ -910,7 +972,9 @@ class DatabaseService {
 
   Future<void> cleanupFileCache({int daysToKeep = 30}) async {
     final db = await database;
-    final cutoff = DateTime.now().subtract(Duration(days: daysToKeep)).millisecondsSinceEpoch;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: daysToKeep))
+        .millisecondsSinceEpoch;
     final oldFiles = await db.query(
       'file_cache',
       where: 'accessedAt < ?',
@@ -925,11 +989,7 @@ class DatabaseService {
         debugPrint('Failed to delete cached file: $e');
       }
     }
-    await db.delete(
-      'file_cache',
-      where: 'accessedAt < ?',
-      whereArgs: [cutoff],
-    );
+    await db.delete('file_cache', where: 'accessedAt < ?', whereArgs: [cutoff]);
   }
 
   // ------------------------------------------------------------------------
@@ -956,27 +1016,23 @@ class DatabaseService {
     final db = await database;
     try {
       debugPrint('💾 Saving group $id for accountOwner $accountOwner');
-      await db.insert(
-        'groups',
-        {
-          'id': id,
-          'accountOwner': accountOwner,
-          'name': name,
-          'owner': owner,
-          'members': jsonEncode(members),
-          'createdAt': createdAt.millisecondsSinceEpoch,
-          'avatarPath': avatarPath,
-          'isMuted': isMuted ? 1 : 0,
-          'lastMessage': lastMessage,
-          'lastMessageTime': lastMessageTime,
-          'unreadCount': unreadCount,
-          'admins': jsonEncode(admins ?? const <String>[]),
-          'mutedUntil': mutedUntil,
-          'wallpaper': wallpaper,
-          'pinnedMessage': pinnedMessage,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.insert('groups', {
+        'id': id,
+        'accountOwner': accountOwner,
+        'name': name,
+        'owner': owner,
+        'members': jsonEncode(members),
+        'createdAt': createdAt.millisecondsSinceEpoch,
+        'avatarPath': avatarPath,
+        'isMuted': isMuted ? 1 : 0,
+        'lastMessage': lastMessage,
+        'lastMessageTime': lastMessageTime,
+        'unreadCount': unreadCount,
+        'admins': jsonEncode(admins ?? const <String>[]),
+        'mutedUntil': mutedUntil,
+        'wallpaper': wallpaper,
+        'pinnedMessage': pinnedMessage,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       debugPrint('✅ Group saved: $id');
     } catch (e) {
@@ -1003,7 +1059,10 @@ class DatabaseService {
     }).toList();
   }
 
-  Future<Map<String, dynamic>?> getGroup(String accountOwner, String groupId) async {
+  Future<Map<String, dynamic>?> getGroup(
+    String accountOwner,
+    String groupId,
+  ) async {
     final db = await database;
     final results = await db.query(
       'groups',
@@ -1073,11 +1132,14 @@ class DatabaseService {
   Future<void> incrementGroupUnread(String accountOwner, String groupId) async {
     final db = await database;
     try {
-      await db.rawUpdate('''
+      await db.rawUpdate(
+        '''
         UPDATE groups 
         SET unreadCount = unreadCount + 1 
         WHERE accountOwner = ? AND id = ?
-      ''', [accountOwner, groupId]);
+      ''',
+        [accountOwner, groupId],
+      );
     } catch (e) {
       debugPrint('❌ Failed to increment unread: $e');
     }
@@ -1128,7 +1190,9 @@ class DatabaseService {
           limit: 1,
         );
         if (existing.isNotEmpty) {
-          debugPrint('⚠️ Group message with id $messageId already exists, skipping insert');
+          debugPrint(
+            '⚠️ Group message with id $messageId already exists, skipping insert',
+          );
           return existing.first['id'] as int;
         }
       } catch (e) {
@@ -1268,21 +1332,17 @@ class DatabaseService {
   }) async {
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    await db.insert(
-      'user_profile',
-      {
-        'accountOwner': accountOwner,
-        'displayName': displayName,
-        'status': status,
-        'avatarPath': avatarPath,
-        'bio': bio,
-        'phoneNumber': phoneNumber,
-        'email': email,
-        'customJson': customJson != null ? jsonEncode(customJson) : null,
-        'updatedAt': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('user_profile', {
+      'accountOwner': accountOwner,
+      'displayName': displayName,
+      'status': status,
+      'avatarPath': avatarPath,
+      'bio': bio,
+      'phoneNumber': phoneNumber,
+      'email': email,
+      'customJson': customJson != null ? jsonEncode(customJson) : null,
+      'updatedAt': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<Map<String, dynamic>?> getUserProfile(String accountOwner) async {
@@ -1405,15 +1465,6 @@ class DatabaseService {
   // ------------------------------------------------------------------------
   //                         PRIVATE HELPERS
   // ------------------------------------------------------------------------
-
-  String _mapToJson(Map<String, dynamic> map) {
-    try {
-      return jsonEncode(map);
-    } catch (e) {
-      debugPrint('Failed to encode map: $e');
-      return '{}';
-    }
-  }
 
   Map<String, dynamic> _jsonToMap(String? jsonStr) {
     if (jsonStr == null || jsonStr.isEmpty) return {};

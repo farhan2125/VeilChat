@@ -1,16 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'veil_components.dart';
-import 'veil_theme.dart';
-import 'stego_extract_screen.dart'; // NEW: dedicated extract screen
+import 'branding/veil_brand.dart';
 import 'services/stego_service.dart';
+import 'stego_extract_screen.dart';
+import 'veil_components.dart';
+import 'veil_feedback.dart';
+import 'veil_theme.dart';
 
-/// Screen for embedding secret messages into images.
-/// - Select image, enter message + password, embed.
-/// - Shows capacity warning if message too long.
-/// - Save resulting image to device.
-/// - Separate button to navigate to extraction screen.
+/// Screen for embedding secret messages into images using randomized Red-channel
+/// LSB steganography with live capacity telemetry.
 class StegoScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggleTheme;
@@ -32,6 +34,7 @@ class _StegoScreenState extends State<StegoScreen> {
   final TextEditingController _passController = TextEditingController();
 
   File? _selectedImage;
+  StegoImageCapacity? _capacity;
   bool _isProcessing = false;
   String? _capacityWarning;
 
@@ -42,46 +45,69 @@ class _StegoScreenState extends State<StegoScreen> {
     super.dispose();
   }
 
-  /// Pick an image from gallery
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      final file = File(pickedFile.path);
+      final cap = _stegoService.inspectImage(file);
+      if (!mounted) return;
       setState(() {
-        _selectedImage = File(pickedFile.path);
-        _capacityWarning = null; // reset warning
+        _selectedImage = file;
+        _capacity = cap;
+        _capacityWarning = null;
       });
       _checkCapacity();
     }
   }
 
-  /// Check if the selected image can hold the current message
+  int get _payloadByteLength => utf8.encode(_msgController.text).length;
+
   void _checkCapacity() {
     if (_selectedImage == null || _msgController.text.isEmpty) {
       setState(() => _capacityWarning = null);
       return;
     }
-    final canFit = _stegoService.canEmbed(_selectedImage!, _msgController.text);
+    final canFit = _capacity != null
+        ? _capacity!.canFitBytes(_payloadByteLength)
+        : _stegoService.canEmbed(_selectedImage!, _msgController.text);
     setState(() {
       _capacityWarning = canFit ? null : '⚠️ Message too long for this image';
     });
   }
 
-  /// Handle embed button
+  void _generateKey() {
+    final rng = Random.secure();
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    final key = List.generate(
+      16,
+      (_) => chars[rng.nextInt(chars.length)],
+    ).join();
+    setState(() => _passController.text = key);
+    Clipboard.setData(ClipboardData(text: key));
+    VeilFeedback.info(
+      context,
+      'Generated 16-char stego key & copied to clipboard',
+    );
+  }
+
   Future<void> _handleEmbed() async {
     if (_selectedImage == null) {
-      _showError('Please select an image');
+      VeilFeedback.warning(context, 'Please select a carrier image first');
       return;
     }
     if (_msgController.text.isEmpty) {
-      _showError('Please enter a message');
+      VeilFeedback.warning(context, 'Please enter a secret message');
       return;
     }
     if (_passController.text.isEmpty) {
-      _showError('Please enter a password');
+      VeilFeedback.warning(context, 'Please enter an encryption password');
       return;
     }
     if (_capacityWarning != null) {
-      _showError('Message too long – choose a larger image or shorter message');
+      VeilFeedback.error(
+        context,
+        'Message too long — choose a higher-resolution image or shorter text',
+      );
       return;
     }
 
@@ -93,15 +119,15 @@ class _StegoScreenState extends State<StegoScreen> {
       password: _passController.text,
     );
 
+    if (!mounted) return;
     setState(() => _isProcessing = false);
 
     if (result.success && result.file != null) {
-      // Show success and preview
       _showSuccessDialog(result.file!);
-      // Clear message field, keep image for possible further embedding
       _msgController.clear();
+      _checkCapacity();
     } else {
-      _showError(result.error ?? 'Embedding failed');
+      VeilFeedback.error(context, result.error ?? 'Embedding failed');
     }
   }
 
@@ -109,17 +135,21 @@ class _StegoScreenState extends State<StegoScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+        backgroundColor: widget.isDark ? VeilBrand.veilSlate : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          '✅ Success',
-          style: TextStyle(color: widget.isDark ? Colors.white : Colors.black),
+          '✅ Stego Payload Embedded',
+          style: TextStyle(
+            color: widget.isDark ? Colors.white : VeilBrand.veilInk,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               child: Image.file(
                 savedFile,
                 height: 150,
@@ -129,13 +159,14 @@ class _StegoScreenState extends State<StegoScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Image saved with hidden message',
+              'Image saved with hidden LSB payload',
               style: TextStyle(
                 color: widget.isDark ? Colors.white70 : Colors.black87,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
-              savedFile.path.split('/').last,
+              savedFile.path.split(Platform.pathSeparator).last,
               style: TextStyle(
                 fontSize: 12,
                 color: widget.isDark ? Colors.white38 : Colors.black54,
@@ -149,10 +180,7 @@ class _StegoScreenState extends State<StegoScreen> {
             child: const Text('OK'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              // Keep the image selected for further embedding
-            },
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('EMBED ANOTHER'),
           ),
         ],
@@ -160,16 +188,6 @@ class _StegoScreenState extends State<StegoScreen> {
     );
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  /// Navigate to the dedicated extraction screen
   void _goToExtractScreen() {
     Navigator.push(
       context,
@@ -182,6 +200,91 @@ class _StegoScreenState extends State<StegoScreen> {
     );
   }
 
+  Widget _buildCapacityMeter(Color themeColor) {
+    final usedBytes = _payloadByteLength;
+    final cap = _capacity;
+    final maxBytes = cap?.maxPayloadBytes ?? 0;
+    final ratio = maxBytes > 0 ? (usedBytes / maxBytes).clamp(0.0, 1.0) : 0.0;
+    final barColor = ratio > 0.9
+        ? VeilBrand.danger
+        : ratio > 0.7
+        ? VeilBrand.warning
+        : VeilBrand.veilTeal;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: (widget.isDark ? Colors.white : Colors.black).withValues(
+          alpha: 0.05,
+        ),
+        borderRadius: BorderRadius.circular(VeilBrand.rMd),
+        border: Border.all(
+          color: (widget.isDark ? Colors.white : Colors.black).withValues(
+            alpha: 0.09,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              VeilBadge(
+                label: cap != null
+                    ? '${cap.width}×${cap.height} PX'
+                    : 'NO CARRIER IMAGE',
+                icon: Icons.photo_size_select_actual_outlined,
+                color: cap != null ? themeColor : Colors.grey,
+                isDark: widget.isDark,
+              ),
+              VeilBadge(
+                label: cap != null
+                    ? '$usedBytes / $maxBytes BYTES'
+                    : '$usedBytes BYTES PAYLOAD',
+                icon: Icons.memory_rounded,
+                color: barColor,
+                isDark: widget.isDark,
+              ),
+              VeilBadge(
+                label: 'SHA-256 PRNG • RED LSB',
+                icon: Icons.verified_user_outlined,
+                color: VeilBrand.veilIndigo,
+                isDark: widget.isDark,
+              ),
+            ],
+          ),
+          if (cap != null) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 6,
+                backgroundColor: (widget.isDark ? Colors.white : Colors.black)
+                    .withValues(alpha: 0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              ),
+            ),
+          ],
+          if (_capacityWarning != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _capacityWarning!,
+              style: const TextStyle(
+                color: VeilBrand.warning,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -189,174 +292,190 @@ class _StegoScreenState extends State<StegoScreen> {
 
     return SafeArea(
       child: SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-      child: Column(
-        children: [
-          // Header with theme toggle and EXTRACT button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: VeilHeader(
-                  title: 'Steganography',
-                  isDark: widget.isDark,
-                  icon: Icons.remove_red_eye_outlined,
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: VeilHeader(
+                    title: 'Steganography',
+                    isDark: widget.isDark,
+                    icon: Icons.remove_red_eye_outlined,
+                  ),
                 ),
-              ),
-              Row(
-                children: [
-                  // Extract button (navigates to dedicated screen)
-                  IconButton(
-                    icon: Icon(
-                      Icons.visibility_off_rounded,
-                      color: themeColor,
-                    ),
-                    onPressed: _goToExtractScreen,
-                    tooltip: 'Extract hidden message',
-                  ),
-                  // Theme toggle
-                  IconButton(
-                    icon: Icon(
-                      widget.isDark ? Icons.wb_sunny : Icons.nightlight_round,
-                    ),
-                    color: widget.isDark ? Colors.white54 : Colors.black54,
-                    onPressed: widget.toggleTheme,
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Main content
-          ConstrainedBox(
-            constraints: BoxConstraints(minHeight: size.height * 0.7),
-            child: VeilGlassContainer(
-              isDark: widget.isDark,
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Image picker area
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Container(
-                      height: 160,
-                      decoration: BoxDecoration(
-                        color: widget.isDark
-                            ? Colors.black.withOpacity(0.3)
-                            : const Color(0xFFE0E5EC).withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: widget.isDark
-                              ? Colors.white10
-                              : Colors.black12,
-                        ),
-                        image: _selectedImage != null
-                            ? DecorationImage(
-                                image: FileImage(_selectedImage!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.visibility_off_rounded,
+                        color: themeColor,
                       ),
-                      child: _selectedImage == null
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_photo_alternate_rounded,
-                                    size: 40,
-                                    color: widget.isDark
-                                        ? Colors.white38
-                                        : Colors.black38,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'TAP TO SELECT IMAGE',
-                                    style: TextStyle(
+                      onPressed: _goToExtractScreen,
+                      tooltip: 'Extract hidden message',
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        widget.isDark ? Icons.wb_sunny : Icons.nightlight_round,
+                      ),
+                      color: widget.isDark ? Colors.white54 : Colors.black54,
+                      onPressed: widget.toggleTheme,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: size.height * 0.7),
+              child: VeilGlassContainer(
+                isDark: widget.isDark,
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        height: 165,
+                        decoration: BoxDecoration(
+                          color: widget.isDark
+                              ? Colors.black.withValues(alpha: 0.3)
+                              : const Color(0xFFE0E5EC).withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _selectedImage != null
+                                ? themeColor.withValues(alpha: 0.45)
+                                : (widget.isDark
+                                      ? Colors.white10
+                                      : Colors.black12),
+                          ),
+                          image: _selectedImage != null
+                              ? DecorationImage(
+                                  image: FileImage(_selectedImage!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: _selectedImage == null
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_photo_alternate_rounded,
+                                      size: 40,
                                       color: widget.isDark
                                           ? Colors.white38
                                           : Colors.black38,
-                                      fontSize: 10,
-                                      letterSpacing: 1.5,
-                                      fontWeight: FontWeight.bold,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : null,
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'TAP TO SELECT IMAGE',
+                                      style: TextStyle(
+                                        color: widget.isDark
+                                            ? Colors.white38
+                                            : Colors.black38,
+                                        fontSize: 10,
+                                        letterSpacing: 1.5,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Message field
-                  VeilTextField(
-                    isDark: widget.isDark,
-                    label: 'Secret Message',
-                    maxLines: 3,
-                    controller: _msgController,
-                    onChanged: (_) => _checkCapacity(),
-                  ),
-                  if (_capacityWarning != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8, left: 10),
-                      child: Text(
-                        _capacityWarning!,
-                        style: const TextStyle(
-                          color: Colors.orange,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                    _buildCapacityMeter(themeColor),
+                    const SizedBox(height: 18),
+                    VeilTextField(
+                      isDark: widget.isDark,
+                      label: 'Secret Message',
+                      maxLines: 3,
+                      controller: _msgController,
+                      onChanged: (_) => _checkCapacity(),
+                    ),
+                    const SizedBox(height: 15),
+                    VeilTextField(
+                      isDark: widget.isDark,
+                      label: 'Password',
+                      isPassword: true,
+                      prefixIcon: Icons.lock_clock_outlined,
+                      controller: _passController,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: _generateKey,
+                        icon: Icon(
+                          Icons.auto_fix_high_rounded,
+                          size: 15,
+                          color: themeColor,
+                        ),
+                        label: Text(
+                          'Generate & Copy Key',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: themeColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  const SizedBox(height: 15),
-
-                  // Password field
-                  VeilTextField(
-                    isDark: widget.isDark,
-                    label: 'Password',
-                    isPassword: true,
-                    prefixIcon: Icons.lock_clock_outlined,
-                    controller: _passController,
-                  ),
-                  const SizedBox(height: 25),
-
-                  // Embed button
-                  _isProcessing
-                      ? const Center(child: CircularProgressIndicator())
-                      : VeilButton(
-                          isDark: widget.isDark,
-                          label: 'EMBED & SAVE',
-                          gradient: [
-                            themeColor,
-                            themeColor.withOpacity(0.7),
-                          ],
-                          onTap: _handleEmbed,
-                        ),
-
-                  const SizedBox(height: 16),
-
-                  // Hint text
-                  Text(
-                    'Your message will be hidden in the image using LSB steganography.\n'
-                    'Only someone with the correct password can extract it.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: widget.isDark ? Colors.white38 : Colors.black38,
+                    const SizedBox(height: 10),
+                    _isProcessing
+                        ? VeilLoadingIndicator(
+                            isDark: widget.isDark,
+                            message: 'Embedding randomized LSB payload...',
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              VeilButton(
+                                isDark: widget.isDark,
+                                label: 'EMBED & SAVE',
+                                icon: Icons.enhanced_encryption_rounded,
+                                gradient: [
+                                  themeColor,
+                                  themeColor.withValues(alpha: 0.7),
+                                ],
+                                onTap: _handleEmbed,
+                              ),
+                              const SizedBox(height: 10),
+                              VeilButton(
+                                isDark: widget.isDark,
+                                label: 'EXTRACT FROM IMAGE',
+                                icon: Icons.visibility_off_rounded,
+                                isOutlined: true,
+                                gradient: [
+                                  themeColor,
+                                  themeColor.withValues(alpha: 0.7),
+                                ],
+                                onTap: _goToExtractScreen,
+                              ),
+                            ],
+                          ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Your message is scattered pseudorandomly across Red-channel LSBs\n'
+                      'seeded by SHA-256(password). Lossless PNG preserves every bit.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: widget.isDark ? Colors.white38 : Colors.black38,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 50),
-        ],
+            const SizedBox(height: 50),
+          ],
+        ),
       ),
-    ),
     );
   }
 }

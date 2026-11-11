@@ -36,7 +36,7 @@ class _ContactListScreenState extends State<ContactListScreen>
   final NetworkService _network = NetworkService();
   final DatabaseService _db = DatabaseService();
 
-  Map<String, String> _allUsers = {};      // username -> Online/Offline
+  Map<String, String> _allUsers = {}; // username -> Online/Offline
   List<Map<String, dynamic>> _savedContacts = [];
   bool _isLoading = true;
   String _searchQuery = '';
@@ -59,8 +59,10 @@ class _ContactListScreenState extends State<ContactListScreen>
           final rawU = data['users'] as Map? ?? {};
           final parsed = <String, String>{};
           rawU.forEach((k, v) {
-            if (v is String) parsed[k.toString()] = v;
-            else if (v is Map) parsed[k.toString()] = v['status']?.toString() ?? 'Offline';
+            if (v is String)
+              parsed[k.toString()] = v;
+            else if (v is Map)
+              parsed[k.toString()] = v['status']?.toString() ?? 'Offline';
           });
           _allUsers = parsed;
         });
@@ -84,7 +86,7 @@ class _ContactListScreenState extends State<ContactListScreen>
     _savedContacts = contacts.where((c) => c['isBlocked'] != 1).toList();
     _favourites = {
       for (var c in contacts)
-        if (c['isFavorite'] == 1) c['contactName'] as String
+        if (c['isFavorite'] == 1) c['contactName'] as String,
     };
 
     // Request fresh user list from server
@@ -92,15 +94,18 @@ class _ContactListScreenState extends State<ContactListScreen>
 
     // Wait briefly for user list response
     try {
-      final data = await _network.userListStream.first
-          .timeout(const Duration(seconds: 5));
+      final data = await _network.userListStream.first.timeout(
+        const Duration(seconds: 5),
+      );
       if (mounted) {
         setState(() {
           final rawU = data['users'] as Map? ?? {};
           final parsed = <String, String>{};
           rawU.forEach((k, v) {
-            if (v is String) parsed[k.toString()] = v;
-            else if (v is Map) parsed[k.toString()] = v['status']?.toString() ?? 'Offline';
+            if (v is String)
+              parsed[k.toString()] = v;
+            else if (v is Map)
+              parsed[k.toString()] = v['status']?.toString() ?? 'Offline';
           });
           _allUsers = parsed;
           _isLoading = false;
@@ -112,12 +117,14 @@ class _ContactListScreenState extends State<ContactListScreen>
   }
 
   Future<void> _saveContact(String contactName) async {
-    await _db.saveContact(
-      owner: widget.username,
-      contactName: contactName,
-    );
+    await _db.saveContact(owner: widget.username, contactName: contactName);
     final contacts = await _db.getContacts(widget.username);
-    if (mounted) setState(() => _savedContacts = contacts.where((c) => c['isBlocked'] != 1).toList());
+    if (mounted)
+      setState(
+        () => _savedContacts = contacts
+            .where((c) => c['isBlocked'] != 1)
+            .toList(),
+      );
     showVeilSnack(context, '$contactName saved to contacts');
   }
 
@@ -125,8 +132,10 @@ class _ContactListScreenState extends State<ContactListScreen>
     final isFav = _favourites.contains(contactName);
     await _db.toggleContactFavorite(widget.username, contactName, !isFav);
     setState(() {
-      if (isFav) _favourites.remove(contactName);
-      else _favourites.add(contactName);
+      if (isFav)
+        _favourites.remove(contactName);
+      else
+        _favourites.add(contactName);
     });
   }
 
@@ -165,8 +174,11 @@ class _ContactListScreenState extends State<ContactListScreen>
   List<Map<String, dynamic>> get _filteredSaved {
     final q = _searchQuery.toLowerCase();
     final list = _savedContacts
-        .where((c) => q.isEmpty ||
-            (c['contactName'] as String).toLowerCase().contains(q))
+        .where(
+          (c) =>
+              q.isEmpty ||
+              (c['contactName'] as String).toLowerCase().contains(q),
+        )
         .toList();
     // Favourites first
     list.sort((a, b) {
@@ -193,14 +205,17 @@ class _ContactListScreenState extends State<ContactListScreen>
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              color: (widget.isDark ? Colors.black : Colors.white)
-                  .withOpacity(0.25),
+              color: (widget.isDark ? Colors.black : Colors.white).withValues(
+                alpha: 0.25,
+              ),
             ),
           ),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: widget.isDark ? Colors.white : Colors.black),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: widget.isDark ? Colors.white : Colors.black,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -222,8 +237,7 @@ class _ContactListScreenState extends State<ContactListScreen>
           controller: _tabController,
           indicatorColor: themeColor,
           labelColor: themeColor,
-          unselectedLabelColor:
-              widget.isDark ? Colors.white38 : Colors.black38,
+          unselectedLabelColor: widget.isDark ? Colors.white38 : Colors.black38,
           tabs: [
             Tab(
               child: Row(
@@ -236,9 +250,11 @@ class _ContactListScreenState extends State<ContactListScreen>
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.2),
+                        color: themeColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -261,9 +277,11 @@ class _ContactListScreenState extends State<ContactListScreen>
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.2),
+                        color: themeColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -289,9 +307,11 @@ class _ContactListScreenState extends State<ContactListScreen>
             decoration: VeilTheme.ultraGlass(isDark: widget.isDark, radius: 14),
             child: Row(
               children: [
-                Icon(Icons.search,
-                    color: widget.isDark ? Colors.white38 : Colors.black38,
-                    size: 20),
+                Icon(
+                  Icons.search,
+                  color: widget.isDark ? Colors.white38 : Colors.black38,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
@@ -299,24 +319,26 @@ class _ContactListScreenState extends State<ContactListScreen>
                     onChanged: (v) =>
                         setState(() => _searchQuery = v.toLowerCase()),
                     style: TextStyle(
-                        color: widget.isDark ? Colors.white : Colors.black,
-                        fontSize: 15),
+                      color: widget.isDark ? Colors.white : Colors.black,
+                      fontSize: 15,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search by username...',
                       hintStyle: TextStyle(
-                          color: widget.isDark
-                              ? Colors.white38
-                              : Colors.black38,
-                          fontSize: 14),
+                        color: widget.isDark ? Colors.white38 : Colors.black38,
+                        fontSize: 14,
+                      ),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
                 if (_searchQuery.isNotEmpty)
                   IconButton(
-                    icon: Icon(Icons.clear,
-                        color: widget.isDark ? Colors.white38 : Colors.black38,
-                        size: 18),
+                    icon: Icon(
+                      Icons.clear,
+                      color: widget.isDark ? Colors.white38 : Colors.black38,
+                      size: 18,
+                    ),
                     onPressed: () {
                       _searchController.clear();
                       setState(() => _searchQuery = '');
@@ -331,14 +353,10 @@ class _ContactListScreenState extends State<ContactListScreen>
           // Tab views
           Expanded(
             child: _isLoading
-                ? Center(
-                    child: CircularProgressIndicator(color: themeColor))
+                ? Center(child: CircularProgressIndicator(color: themeColor))
                 : TabBarView(
                     controller: _tabController,
-                    children: [
-                      _buildAllUsersTab(),
-                      _buildSavedTab(),
-                    ],
+                    children: [_buildAllUsersTab(), _buildSavedTab()],
                   ),
           ),
         ],
@@ -376,16 +394,19 @@ class _ContactListScreenState extends State<ContactListScreen>
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.15),
+                      color: Colors.green.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 7, height: 7,
+                          width: 7,
+                          height: 7,
                           decoration: const BoxDecoration(
                             color: Color(0xFF00FF88),
                             shape: BoxShape.circle,
@@ -395,9 +416,10 @@ class _ContactListScreenState extends State<ContactListScreen>
                         Text(
                           '$onlineCount online',
                           style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF00FF88),
-                              fontWeight: FontWeight.w600),
+                            fontSize: 12,
+                            color: Color(0xFF00FF88),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -406,10 +428,9 @@ class _ContactListScreenState extends State<ContactListScreen>
                   Text(
                     '${users.length} total',
                     style: TextStyle(
-                        fontSize: 12,
-                        color: widget.isDark
-                            ? Colors.white38
-                            : Colors.black38),
+                      fontSize: 12,
+                      color: widget.isDark ? Colors.white38 : Colors.black38,
+                    ),
                   ),
                 ],
               ),
@@ -419,8 +440,7 @@ class _ContactListScreenState extends State<ContactListScreen>
           return _buildUserTile(
             username: entry.key,
             status: entry.value,
-            isSaved: _savedContacts
-                .any((c) => c['contactName'] == entry.key),
+            isSaved: _savedContacts.any((c) => c['contactName'] == entry.key),
           );
         },
       ),
@@ -476,13 +496,12 @@ class _ContactListScreenState extends State<ContactListScreen>
       margin: const EdgeInsets.only(bottom: 8),
       decoration: VeilTheme.ultraGlass(isDark: widget.isDark, radius: 20),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: Stack(
           children: [
             CircleAvatar(
               radius: 26,
-              backgroundColor: themeColor.withOpacity(0.15),
+              backgroundColor: themeColor.withValues(alpha: 0.15),
               child: Text(
                 username[0].toUpperCase(),
                 style: TextStyle(
@@ -499,9 +518,7 @@ class _ContactListScreenState extends State<ContactListScreen>
                 width: 13,
                 height: 13,
                 decoration: BoxDecoration(
-                  color: isOnline
-                      ? const Color(0xFF00FF88)
-                      : Colors.grey,
+                  color: isOnline ? const Color(0xFF00FF88) : Colors.grey,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: widget.isDark ? Colors.black : Colors.white,
@@ -510,8 +527,11 @@ class _ContactListScreenState extends State<ContactListScreen>
                   boxShadow: isOnline
                       ? [
                           BoxShadow(
-                              color: const Color(0xFF00FF88).withOpacity(0.4),
-                              blurRadius: 6)
+                            color: const Color(
+                              0xFF00FF88,
+                            ).withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
                         ]
                       : [],
                 ),
@@ -531,8 +551,7 @@ class _ContactListScreenState extends State<ContactListScreen>
             ),
             if (isFavourite) ...[
               const SizedBox(width: 6),
-              Icon(Icons.star_rounded,
-                  color: Colors.amber, size: 16),
+              Icon(Icons.star_rounded, color: Colors.amber, size: 16),
             ],
           ],
         ),
@@ -543,9 +562,7 @@ class _ContactListScreenState extends State<ContactListScreen>
               height: 7,
               margin: const EdgeInsets.only(right: 5),
               decoration: BoxDecoration(
-                color: isOnline
-                    ? const Color(0xFF00FF88)
-                    : Colors.grey,
+                color: isOnline ? const Color(0xFF00FF88) : Colors.grey,
                 shape: BoxShape.circle,
               ),
             ),
@@ -555,9 +572,7 @@ class _ContactListScreenState extends State<ContactListScreen>
                 fontSize: 13,
                 color: isOnline
                     ? const Color(0xFF00FF88)
-                    : (widget.isDark
-                        ? Colors.white38
-                        : Colors.black38),
+                    : (widget.isDark ? Colors.white38 : Colors.black38),
               ),
             ),
           ],
@@ -568,14 +583,10 @@ class _ContactListScreenState extends State<ContactListScreen>
             // Star / favourite toggle
             IconButton(
               icon: Icon(
-                isFavourite
-                    ? Icons.star_rounded
-                    : Icons.star_outline_rounded,
+                isFavourite ? Icons.star_rounded : Icons.star_outline_rounded,
                 color: isFavourite
                     ? Colors.amber
-                    : (widget.isDark
-                        ? Colors.white30
-                        : Colors.black26),
+                    : (widget.isDark ? Colors.white30 : Colors.black26),
                 size: 22,
               ),
               onPressed: () async {
@@ -586,12 +597,15 @@ class _ContactListScreenState extends State<ContactListScreen>
             // Message button
             Container(
               decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.15),
+                color: themeColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: IconButton(
-                icon: Icon(Icons.chat_bubble_outline_rounded,
-                    color: themeColor, size: 20),
+                icon: Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: themeColor,
+                  size: 20,
+                ),
                 onPressed: () => _openChat(username),
                 tooltip: 'Message',
               ),
@@ -618,7 +632,7 @@ class _ContactListScreenState extends State<ContactListScreen>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.1),
+                color: themeColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 48, color: themeColor),

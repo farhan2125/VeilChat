@@ -12,7 +12,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'veil_theme.dart';
-import 'veil_components.dart';
 import 'services/group_service.dart';
 import 'services/network_service.dart';
 import 'services/database_service.dart';
@@ -21,9 +20,7 @@ import 'services/sound_service.dart';
 import 'services/file_transfer_service.dart';
 import 'services/stego_service.dart';
 import 'services/media_service.dart';
-import 'call_screen.dart';
 import 'group_info_screen.dart';
-
 
 class GroupChatDetailScreen extends StatefulWidget {
   final String groupId;
@@ -71,10 +68,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
   Timer? _typingTimer;
   Timer? _debounceTimer;
 
-  bool _isRecordingVoice = false;
-  Map<String, dynamic>? _replyMsg; // swipe-to-reply state
   Set<String> _onlineMembers = {};
-  int _recordingTime = 0;
 
   Map<String, bool> _playingAudioMessages = {};
   Map<String, Duration> _audioDurations = {};
@@ -82,7 +76,6 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
 
   StreamSubscription? _groupMessageSub;
   StreamSubscription? _typingSub;
-  StreamSubscription? _recordingTimeSub;
   StreamSubscription? _groupUpdateSub;
 
   final Map<int, String> _decryptedMediaPaths = {};
@@ -90,18 +83,102 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
 
   final List<String> _emojis = [
     // VeilChat signature trio pinned to the front of the palette
-    "😳","🤪","🥴",
-    "😀","😂","🤣","😍","🥰","😎","🤔","🤨","😐","😑","😶","🙄","😏",
+    "😳", "🤪", "🥴",
+    "😀",
+    "😂",
+    "🤣",
+    "😍",
+    "🥰",
+    "😎",
+    "🤔",
+    "🤨",
+    "😐",
+    "😑",
+    "😶",
+    "🙄",
+    "😏",
 
-    "😣","😥","😮","😯","😪","😫","😴","😌","😛","😜","😝","🤤","😒",
-    "😓","😔","😕","🙃","🤑","😲","☹️","🙁","😖","😞","😟","😤","😢",
-    "😭","😦","😧","😨","😩","🤯","😬","😶‍🌫️","😱","🥵","🥶","😳","🤪",
-    "😵","😡","😠","🤬","😷","🤒","🤕","🤢","🤮","🤧","😇","🥳",
-    "🥺","🤠","🤡","🤥","🤫","🤭","🧐","🤓","😈","👿","👹","👺","💀",
-    "👻","👽","🤖","💩","😺","😸","😹","😻","😼","😽","🙀","😿","😾",
-    "❤️","🧡","💛","💚","💙","💜","🖤","💔","❣️","💕","💞","💓","💗",
-    "💖","💘","💝","👍","👎","👊","✌️","👌","✋","💪","🙏","☝️","👆",
-    "👇","👈","👉","🖕","🖐","🤘","🤟"
+    "😣",
+    "😥",
+    "😮",
+    "😯",
+    "😪",
+    "😫",
+    "😴",
+    "😌",
+    "😛",
+    "😜",
+    "😝",
+    "🤤",
+    "😒",
+    "😓",
+    "😔",
+    "😕",
+    "🙃",
+    "🤑",
+    "😲",
+    "☹️",
+    "🙁",
+    "😖",
+    "😞",
+    "😟",
+    "😤",
+    "😢",
+    "😭",
+    "😦",
+    "😧",
+    "😨",
+    "😩",
+    "🤯",
+    "😬",
+    "😶‍🌫️",
+    "😱",
+    "🥵",
+    "🥶",
+    "😳",
+    "🤪",
+    "😵", "😡", "😠", "🤬", "😷", "🤒", "🤕", "🤢", "🤮", "🤧", "😇", "🥳",
+    "🥺",
+    "🤠",
+    "🤡",
+    "🤥",
+    "🤫",
+    "🤭",
+    "🧐",
+    "🤓",
+    "😈",
+    "👿",
+    "👹",
+    "👺",
+    "💀",
+    "👻",
+    "👽",
+    "🤖",
+    "💩",
+    "😺",
+    "😸",
+    "😹",
+    "😻",
+    "😼",
+    "😽",
+    "🙀",
+    "😿",
+    "😾",
+    "❤️",
+    "🧡",
+    "💛",
+    "💚",
+    "💙",
+    "💜",
+    "🖤",
+    "💔",
+    "❣️",
+    "💕",
+    "💞",
+    "💓",
+    "💗",
+    "💖", "💘", "💝", "👍", "👎", "👊", "✌️", "👌", "✋", "💪", "🙏", "☝️", "👆",
+    "👇", "👈", "👉", "🖕", "🖐", "🤘", "🤟",
   ];
 
   @override
@@ -120,7 +197,8 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     // Mark group as read when opening
     _groupService.markGroupAsRead(widget.groupId);
     WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _sendGroupReadReceipt());
+      (_) => _sendGroupReadReceipt(),
+    );
     _focusNode.addListener(_onFocusChange);
     _msgController.addListener(_onTextChanged);
   }
@@ -136,12 +214,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     _debounceTimer?.cancel();
     _groupMessageSub?.cancel();
     _typingSub?.cancel();
-    _recordingTimeSub?.cancel();
     _groupUpdateSub?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
-
 
   void _sendGroupReadReceipt() {
     final user = NetworkService().currentUser;
@@ -179,13 +255,16 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       String contentStr = modifiableMsg['content']?.toString() ?? '';
 
       bool isMe = modifiableMsg['isMe'] == 1 || modifiableMsg['isMe'] == true;
-      modifiableMsg['isMe'] = isMe; // FIX: normalize to bool so _buildBubble works
+      modifiableMsg['isMe'] =
+          isMe; // FIX: normalize to bool so _buildBubble works
 
       // An explicit media type must NEVER be treated as text — otherwise an
       // AUDIO/IMAGE/FILE message whose content is a server .enc filename ends
       // up shown as plain text (the raw filename) for several seconds.
       final bool isExplicitMedia =
-          currentType == 'IMAGE' || currentType == 'AUDIO' || currentType == 'FILE';
+          currentType == 'IMAGE' ||
+          currentType == 'AUDIO' ||
+          currentType == 'FILE';
 
       if (!isExplicitMedia &&
           (currentType == 'TEXT' || currentType == 'GRP_MSG') &&
@@ -209,12 +288,18 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       }
 
       // Classify only generic GRP_MSG/TEXT messages by their content shape.
-      if (!isExplicitMedia && (currentType == 'GRP_MSG' || currentType == 'TEXT')) {
-        if (contentStr.contains('.jpg') || contentStr.contains('.png') || contentStr.contains('.jpeg')) {
+      if (!isExplicitMedia &&
+          (currentType == 'GRP_MSG' || currentType == 'TEXT')) {
+        if (contentStr.contains('.jpg') ||
+            contentStr.contains('.png') ||
+            contentStr.contains('.jpeg')) {
           modifiableMsg['type'] = 'IMAGE';
         } else if (contentStr.contains('.m4a') || contentStr.contains('.mp3')) {
           modifiableMsg['type'] = 'AUDIO';
-        } else if (contentStr.contains('grp_recv_') && (contentStr.contains('.dat') || contentStr.contains('.jpg') || contentStr.contains('.png'))) {
+        } else if (contentStr.contains('grp_recv_') &&
+            (contentStr.contains('.dat') ||
+                contentStr.contains('.jpg') ||
+                contentStr.contains('.png'))) {
           modifiableMsg['type'] = 'IMAGE';
         }
       }
@@ -248,7 +333,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     final int msgId = msg['id'] ?? 0;
     final String type = msg['type'] ?? 'TEXT';
 
-    if (serverFilename.isEmpty || serverFilename.contains(' ') || serverFilename.contains('/')) return;
+    if (serverFilename.isEmpty ||
+        serverFilename.contains(' ') ||
+        serverFilename.contains('/'))
+      return;
 
     if (_downloadingMedia.contains(msgId)) {
       debugPrint('📥 Already downloading msgId $msgId, skipping');
@@ -256,7 +344,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     }
     _downloadingMedia.add(msgId);
 
-    debugPrint('📥 _downloadGroupMedia for msgId $msgId, serverFilename: $serverFilename');
+    debugPrint(
+      '📥 _downloadGroupMedia for msgId $msgId, serverFilename: $serverFilename',
+    );
 
     try {
       final dir = await getApplicationDocumentsDirectory();
@@ -275,7 +365,11 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         final safeName = origFilename.replaceAll(RegExp(r'[^\w._-]'), '_');
         saveBase = 'grp_recv_${msg['messageId'] ?? msgId}_$safeName';
       } else {
-        final ext = type == 'IMAGE' ? '.jpg' : type == 'AUDIO' ? '.m4a' : '.dat';
+        final ext = type == 'IMAGE'
+            ? '.jpg'
+            : type == 'AUDIO'
+            ? '.m4a'
+            : '.dat';
         saveBase = 'grp_recv_${msg['messageId'] ?? msgId}$ext';
       }
       final savePath = '${subDir.path}/$saveBase';
@@ -297,12 +391,17 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       for (int attempt = 1; attempt <= maxRetries; attempt++) {
         debugPrint('📥 Download attempt $attempt for $serverFilename');
         final tempEncPath = '$savePath.enc$attempt';
-        downloadedFile = await MediaService.downloadEncryptedFile(serverFilename, tempEncPath);
+        downloadedFile = await MediaService.downloadEncryptedFile(
+          serverFilename,
+          tempEncPath,
+        );
 
         if (downloadedFile != null && await downloadedFile.exists()) {
           int fileSize = await downloadedFile.length();
           if (fileSize < 48) {
-            debugPrint('❌ Downloaded file too small ($fileSize bytes), retrying...');
+            debugPrint(
+              '❌ Downloaded file too small ($fileSize bytes), retrying...',
+            );
             await downloadedFile.delete();
             downloadedFile = null;
             continue;
@@ -320,23 +419,33 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         debugPrint('❌ All download attempts failed for $serverFilename');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to download media. Tap to retry.'), backgroundColor: Colors.orange),
+            SnackBar(
+              content: Text('Failed to download media. Tap to retry.'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
         _downloadingMedia.remove(msgId);
         return;
       }
 
-      debugPrint('📥 Downloaded file size: ${await downloadedFile.length()} bytes');
+      debugPrint(
+        '📥 Downloaded file size: ${await downloadedFile.length()} bytes',
+      );
       String hexData = await downloadedFile.readAsString();
       hexData = hexData.trim();
 
       final encryptedBytes = _crypto.hexToBytes(hexData);
       debugPrint('📥 Encrypted bytes length: ${encryptedBytes.length} bytes');
-      final decryptedBase64 = await _crypto.decrypt(widget.sharedKey, encryptedBytes);
+      final decryptedBase64 = await _crypto.decrypt(
+        widget.sharedKey,
+        encryptedBytes,
+      );
 
       if (decryptedBase64 != null) {
-        debugPrint('📥 Decryption successful, base64 length: ${decryptedBase64.length}');
+        debugPrint(
+          '📥 Decryption successful, base64 length: ${decryptedBase64.length}',
+        );
         final clearBytes = base64Decode(decryptedBase64);
         debugPrint('📥 Final media bytes length: ${clearBytes.length}');
 
@@ -345,7 +454,12 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         await downloadedFile.delete();
 
         final db = await _db.database;
-        await db.update('group_messages', {'content': finalFile.path}, where: 'id = ?', whereArgs: [msgId]);
+        await db.update(
+          'group_messages',
+          {'content': finalFile.path},
+          where: 'id = ?',
+          whereArgs: [msgId],
+        );
 
         if (mounted) {
           setState(() {
@@ -357,7 +471,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         debugPrint('❌ Decryption returned null – wrong key or corrupted data');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Decryption failed. Wrong key?'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('Decryption failed. Wrong key?'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -396,8 +513,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         setState(() => _onlineMembers.add(data['sender'].toString()));
       }
       // Group read receipt
-      if (data['type'] == 'GRP_READ' &&
-          data['groupId'] == widget.groupId) {
+      if (data['type'] == 'GRP_READ' && data['groupId'] == widget.groupId) {
         final reader = data['reader']?.toString() ?? '';
         if (reader.isNotEmpty && reader != _currentUser) {
           setState(() => _onlineMembers.add(reader));
@@ -409,8 +525,11 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           data['groupId'] == widget.groupId) {
         final delId = data['messageId']?.toString();
         if (delId != null) {
-          setState(() => _messages.removeWhere(
-              (m) => m['messageId']?.toString() == delId));
+          setState(
+            () => _messages.removeWhere(
+              (m) => m['messageId']?.toString() == delId,
+            ),
+          );
         }
         return;
       }
@@ -418,12 +537,6 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           data['groupId'] == widget.groupId &&
           data['sender'] != _currentUser) {
         _handleIncomingTyping();
-      }
-    });
-
-    _recordingTimeSub = _sound.recordingTimeStream.listen((seconds) {
-      if (mounted && _isRecordingVoice) {
-        setState(() => _recordingTime = seconds);
       }
     });
 
@@ -610,9 +723,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
   }
 
   String _formatTimestamp(int timestamp) {
-    return DateFormat('hh:mm a').format(
-      DateTime.fromMillisecondsSinceEpoch(timestamp),
-    );
+    return DateFormat(
+      'hh:mm a',
+    ).format(DateTime.fromMillisecondsSinceEpoch(timestamp));
   }
 
   void _showAttachmentMenu() {
@@ -637,11 +750,36 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _attachmentBtn(Icons.image, 'Gallery', Colors.purple, _pickImage),
-                _attachmentBtn(Icons.camera_alt, 'Camera', Colors.blue, _pickCamera),
-                _attachmentBtn(Icons.mic, 'Voice', Colors.red, _startVoiceRecording),
-                _attachmentBtn(Icons.attach_file, 'File', Colors.orange, _pickDocument),
-                _attachmentBtn(Icons.visibility_off, 'Stego', Colors.cyan, _showStegoDialog),
+                _attachmentBtn(
+                  Icons.image,
+                  'Gallery',
+                  Colors.purple,
+                  _pickImage,
+                ),
+                _attachmentBtn(
+                  Icons.camera_alt,
+                  'Camera',
+                  Colors.blue,
+                  _pickCamera,
+                ),
+                _attachmentBtn(
+                  Icons.mic,
+                  'Voice',
+                  Colors.red,
+                  _startVoiceRecording,
+                ),
+                _attachmentBtn(
+                  Icons.attach_file,
+                  'File',
+                  Colors.orange,
+                  _pickDocument,
+                ),
+                _attachmentBtn(
+                  Icons.visibility_off,
+                  'Stego',
+                  Colors.cyan,
+                  _showStegoDialog,
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -651,7 +789,12 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     );
   }
 
-  Widget _attachmentBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _attachmentBtn(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -664,9 +807,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Icon(icon, color: color, size: 28),
           ),
@@ -764,10 +907,6 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     final started = await _sound.startRecording();
     if (started) {
       if (!mounted) return;
-      setState(() {
-        _isRecordingVoice = true;
-        _recordingTime = 0;
-      });
       _showRecordingOverlay();
     } else {
       _showError('Microphone permission required');
@@ -805,12 +944,17 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                 const SizedBox(height: 16),
                 Text(
                   '${(_modalSeconds ~/ 60).toString().padLeft(2, '0')}:${(_modalSeconds % 60).toString().padLeft(2, '0')}',
-                  style: const TextStyle(color: Colors.white, fontSize: 36,
-                    fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
-                const Text('Recording...',
-                  style: TextStyle(color: Colors.white54, fontSize: 13)),
+                const Text(
+                  'Recording...',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                ),
                 const SizedBox(height: 28),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -820,10 +964,6 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                       await modalSub?.cancel();
                       modalSub = null;
                       Navigator.pop(ctx2);
-                      if (mounted) setState(() {
-                        _isRecordingVoice = false;
-                        _recordingTime = 0;
-                      });
                     }),
                     _circleBtn(Icons.stop, Colors.red, () async {
                       final path = await _sound.stopRecording();
@@ -831,17 +971,19 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                       modalSub = null;
                       Navigator.pop(ctx2);
                       if (path != null) {
-                        final audioBase64 = await _sound.convertFileToBase64(path);
+                        final audioBase64 = await _sound.convertFileToBase64(
+                          path,
+                        );
                         if (audioBase64.isNotEmpty) {
-                          _sendSecureData(audioBase64, 'AUDIO', localFilePath: path);
+                          _sendSecureData(
+                            audioBase64,
+                            'AUDIO',
+                            localFilePath: path,
+                          );
                         } else {
                           _showError('Voice recording failed');
                         }
                       }
-                      if (mounted) setState(() {
-                        _isRecordingVoice = false;
-                        _recordingTime = 0;
-                      });
                     }),
                   ],
                 ),
@@ -860,7 +1002,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -874,95 +1016,160 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                   : [const Color(0xFFEEF2FF), const Color(0xFFF8F0FF)],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: themeColor.withOpacity(0.3), width: 1.5),
-            boxShadow: [BoxShadow(color: themeColor.withOpacity(0.15), blurRadius: 30)],
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.15),
+                blurRadius: 30,
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56, height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [themeColor, VeilTheme.neonPurple]),
-                  boxShadow: [BoxShadow(color: themeColor.withOpacity(0.4), blurRadius: 16)],
-                ),
-                child: const Icon(Icons.image_search_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(height: 14),
-              Text('Hide Message in Image',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : Colors.black87)),
-              const SizedBox(height: 4),
-              Text('Invisibly embedded using LSB steganography',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12,
-                  color: widget.isDark ? Colors.white38 : Colors.black38)),
-              const SizedBox(height: 20),
-              _stegoTextField(controller: msgController, label: 'Secret message',
-                icon: Icons.message_rounded, maxLines: 3,
-                isDark: widget.isDark, themeColor: themeColor),
-              const SizedBox(height: 14),
-              _stegoTextField(controller: passController, label: 'Encryption password',
-                icon: Icons.key_rounded, obscure: true,
-                isDark: widget.isDark, themeColor: themeColor),
-              const SizedBox(height: 24),
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: Colors.white24))),
-                    child: Text('Cancel', style: TextStyle(
-                      color: widget.isDark ? Colors.white54 : Colors.black45,
-                      fontWeight: FontWeight.w600)),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [themeColor, VeilTheme.neonPurple],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeColor.withValues(alpha: 0.4),
+                        blurRadius: 16,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.image_search_rounded,
+                    color: Colors.white,
+                    size: 26,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (msgController.text.trim().isEmpty) return;
-                      if (passController.text.trim().isEmpty) return;
-                      Navigator.pop(ctx);
-                      final image = await _imagePicker.pickImage(source: ImageSource.gallery);
-                      if (image == null) return;
-                      final result = await _stego.embedMessage(
-                        imageFile: File(image.path),
-                        message: msgController.text,
-                        password: passController.text,
-                      );
-                      if (result.success && result.file != null) {
-                        _sendSecureData('', 'IMAGE',
-                          isHidden: 1, hiddenKey: passController.text,
-                          localFilePath: result.file!.path);
-                      } else {
-                        _showError(result.error ?? 'Stego embedding failed');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: themeColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      shadowColor: themeColor.withOpacity(0.4), elevation: 4),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.send_rounded, size: 16),
-                        SizedBox(width: 6),
-                        Text('Embed & Send', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ]),
+                const SizedBox(height: 14),
+                Text(
+                  'Hide Message in Image',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: widget.isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-              ]),
-            ],
-          ),
+                const SizedBox(height: 4),
+                Text(
+                  'Invisibly embedded using LSB steganography',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: widget.isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _stegoTextField(
+                  controller: msgController,
+                  label: 'Secret message',
+                  icon: Icons.message_rounded,
+                  maxLines: 3,
+                  isDark: widget.isDark,
+                  themeColor: themeColor,
+                ),
+                const SizedBox(height: 14),
+                _stegoTextField(
+                  controller: passController,
+                  label: 'Encryption password',
+                  icon: Icons.key_rounded,
+                  obscure: true,
+                  isDark: widget.isDark,
+                  themeColor: themeColor,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: const BorderSide(color: Colors.white24),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: widget.isDark
+                                ? Colors.white54
+                                : Colors.black45,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (msgController.text.trim().isEmpty) return;
+                          if (passController.text.trim().isEmpty) return;
+                          Navigator.pop(ctx);
+                          final image = await _imagePicker.pickImage(
+                            source: ImageSource.gallery,
+                          );
+                          if (image == null) return;
+                          final result = await _stego.embedMessage(
+                            imageFile: File(image.path),
+                            message: msgController.text,
+                            password: passController.text,
+                          );
+                          if (result.success && result.file != null) {
+                            _sendSecureData(
+                              '',
+                              'IMAGE',
+                              isHidden: 1,
+                              hiddenKey: passController.text,
+                              localFilePath: result.file!.path,
+                            );
+                          } else {
+                            _showError(
+                              result.error ?? 'Stego embedding failed',
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: themeColor,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          shadowColor: themeColor.withValues(alpha: 0.4),
+                          elevation: 4,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.send_rounded, size: 16),
+                            SizedBox(width: 6),
+                            Text(
+                              'Embed & Send',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ), // SingleChildScrollView
         ),
       ),
@@ -980,13 +1187,15 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: themeColor.withOpacity(0.2)),
+        border: Border.all(color: themeColor.withValues(alpha: 0.2)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
-        crossAxisAlignment: maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment: maxLines > 1
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           Padding(
             padding: EdgeInsets.only(top: maxLines > 1 ? 12.0 : 0),
@@ -998,11 +1207,18 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               controller: controller,
               obscureText: obscure,
               maxLines: obscure ? 1 : maxLines,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15),
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontSize: 15,
+              ),
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: TextStyle(color: themeColor.withOpacity(0.7), fontSize: 13),
-                border: InputBorder.none),
+                labelStyle: TextStyle(
+                  color: themeColor.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
+                border: InputBorder.none,
+              ),
             ),
           ),
         ],
@@ -1017,99 +1233,159 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: widget.isDark
                   ? [const Color(0xFF0D1B2A), const Color(0xFF1A1040)]
-                  : [const Color(0xFFEEF2FF), const Color(0xFFF8F0FF)]),
+                  : [const Color(0xFFEEF2FF), const Color(0xFFF8F0FF)],
+            ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: VeilTheme.neonPurple.withOpacity(0.4), width: 1.5),
-            boxShadow: [BoxShadow(color: VeilTheme.neonPurple.withOpacity(0.2), blurRadius: 30)],
+            border: Border.all(
+              color: VeilTheme.neonPurple.withValues(alpha: 0.4),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: VeilTheme.neonPurple.withValues(alpha: 0.2),
+                blurRadius: 30,
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 56, height: 56,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [VeilTheme.neonPurple, VeilTheme.accentColor]),
-                  boxShadow: [BoxShadow(color: VeilTheme.neonPurple.withOpacity(0.4), blurRadius: 16)],
+                  gradient: LinearGradient(
+                    colors: [VeilTheme.neonPurple, VeilTheme.accentColor],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: VeilTheme.neonPurple.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.lock_open_rounded, color: Colors.white, size: 26),
+                child: const Icon(
+                  Icons.lock_open_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
               ),
               const SizedBox(height: 14),
-              Text('Reveal Hidden Message',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : Colors.black87)),
+              Text(
+                'Reveal Hidden Message',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Enter the password used to hide the message', textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12,
-                  color: widget.isDark ? Colors.white38 : Colors.black38)),
+              Text(
+                'Enter the password used to hide the message',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: widget.isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
               const SizedBox(height: 20),
-              _stegoTextField(controller: passController, label: 'Password',
-                icon: Icons.key_rounded, obscure: true,
-                isDark: widget.isDark, themeColor: VeilTheme.neonPurple),
+              _stegoTextField(
+                controller: passController,
+                label: 'Password',
+                icon: Icons.key_rounded,
+                obscure: true,
+                isDark: widget.isDark,
+                themeColor: VeilTheme.neonPurple,
+              ),
               const SizedBox(height: 24),
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: Colors.white24))),
-                    child: Text('Cancel', style: TextStyle(
-                      color: widget.isDark ? Colors.white54 : Colors.black45,
-                      fontWeight: FontWeight.w600)),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: Colors.white24),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: widget.isDark
+                              ? Colors.white54
+                              : Colors.black45,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (passController.text.trim().isEmpty) return;
-                      Navigator.pop(ctx);
-                      if (!_isLikelyFilePath(path)) {
-                        _showError('Image not downloaded yet.');
-                        return;
-                      }
-                      final result = await _stego.extractMessage(
-                        imageFile: File(path),
-                        password: passController.text.trim(),
-                      );
-                      if (mounted) {
-                        if (result.success && result.message != null) {
-                          _showExtractResult(result.message!);
-                        } else {
-                          _showError(result.error ?? 'Extraction failed — wrong password?');
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (passController.text.trim().isEmpty) return;
+                        Navigator.pop(ctx);
+                        if (!_isLikelyFilePath(path)) {
+                          _showError('Image not downloaded yet.');
+                          return;
                         }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: VeilTheme.neonPurple,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      shadowColor: VeilTheme.neonPurple.withOpacity(0.4), elevation: 4),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.visibility_rounded, size: 16),
-                        SizedBox(width: 6),
-                        Text('Reveal', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ]),
+                        final result = await _stego.extractMessage(
+                          imageFile: File(path),
+                          password: passController.text.trim(),
+                        );
+                        if (mounted) {
+                          if (result.success && result.message != null) {
+                            _showExtractResult(result.message!);
+                          } else {
+                            _showError(
+                              result.error ??
+                                  'Extraction failed — wrong password?',
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: VeilTheme.neonPurple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        shadowColor: VeilTheme.neonPurple.withValues(
+                          alpha: 0.4,
+                        ),
+                        elevation: 4,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.visibility_rounded, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'Reveal',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ),
         ),
@@ -1126,72 +1402,119 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: widget.isDark
                   ? [const Color(0xFF0D1B2A), const Color(0xFF0D2010)]
-                  : [const Color(0xFFEEF2FF), const Color(0xFFEEFFF4)]),
+                  : [const Color(0xFFEEF2FF), const Color(0xFFEEFFF4)],
+            ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.greenAccent.withOpacity(0.4)),
+            border: Border.all(
+              color: Colors.greenAccent.withValues(alpha: 0.4),
+            ),
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 52, height: 52,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.green),
-                child: const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.green,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
               const SizedBox(height: 14),
-              Text('Hidden Message',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : Colors.black87)),
+              Text(
+                'Hidden Message',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.greenAccent.withOpacity(0.08),
+                  color: Colors.greenAccent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.greenAccent.withOpacity(0.3))),
-                child: SelectableText(message,
-                  style: TextStyle(fontSize: 15, height: 1.5,
-                    color: widget.isDark ? Colors.white : Colors.black87)),
+                  border: Border.all(
+                    color: Colors.greenAccent.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: SelectableText(
+                  message,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.5,
+                    color: widget.isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: message));
-                      Navigator.pop(ctx);
-                      _showSnack('Message copied', Colors.green);
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: Colors.greenAccent.withOpacity(0.4)))),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.copy_rounded, size: 15, color: Colors.greenAccent),
-                        SizedBox(width: 6),
-                        Text('Copy', style: TextStyle(color: Colors.greenAccent))]),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: message));
+                        Navigator.pop(ctx);
+                        _showSnack('Message copied', Colors.green);
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: Colors.greenAccent.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 15,
+                            color: Colors.greenAccent,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Copy',
+                            style: TextStyle(color: Colors.greenAccent),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      backgroundColor: themeColor, foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                    child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: themeColor,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ),
         ),
@@ -1219,7 +1542,8 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           children: [
             // Drag handle
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: widget.isDark ? Colors.white24 : Colors.black26,
@@ -1231,45 +1555,67 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _grpActionBtn(ctx, Icons.reply_rounded, 'Reply', () {
-                  setState(() => _replyMsg = msg);
+                  Navigator.pop(ctx);
+                  final text = msg['content']?.toString() ?? '';
+                  if (text.isNotEmpty) {
+                    _msgController.text = "> $text\n${_msgController.text}";
+                    _msgController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _msgController.text.length),
+                    );
+                  }
                 }),
                 if (msg['type'] == 'TEXT')
                   _grpActionBtn(ctx, Icons.copy_rounded, 'Copy', () {
-                    Clipboard.setData(ClipboardData(text: msg['content'] ?? ''));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Copied')));
+                    Clipboard.setData(
+                      ClipboardData(text: msg['content'] ?? ''),
+                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('Copied')));
                   }),
                 if (msg['type'] == 'TEXT')
                   _grpActionBtn(ctx, Icons.forward_rounded, 'Forward', () {
                     _showGroupForwardDialog(msg);
                   }),
-                _grpActionBtn(ctx, Icons.delete_outline_rounded, 'Delete for me',
+                _grpActionBtn(
+                  ctx,
+                  Icons.delete_outline_rounded,
+                  'Delete for me',
                   () => _deleteGroupMessage(index, false),
-                  color: Colors.orangeAccent),
+                  color: Colors.orangeAccent,
+                ),
                 if (isMe)
-                  _grpActionBtn(ctx, Icons.delete_forever_rounded, 'Delete for all',
+                  _grpActionBtn(
+                    ctx,
+                    Icons.delete_forever_rounded,
+                    'Delete for all',
                     () => _deleteGroupMessage(index, true),
-                    color: Colors.redAccent),
+                    color: Colors.redAccent,
+                  ),
               ],
             ),
             const Divider(height: 24),
             // Emoji reactions
-            Text('React', style: TextStyle(
-              fontSize: 13, fontWeight: FontWeight.bold,
-              color: widget.isDark ? Colors.white54 : Colors.black45)),
+            Text(
+              'React',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: widget.isDark ? Colors.white54 : Colors.black45,
+              ),
+            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: const [
-                '❤️', '😂', '😮', '😢', '👍', '🔥',
-                '🎉', '😡', '🙏', '💯', '😍', '🤔',
-                // VeilChat signature quick reactions
-                '😳', '🤪', '🥴',
-              ]
-
-                  .map((emoji) {
+              children:
+                  const [
+                    '❤️', '😂', '😮', '😢', '👍', '🔥',
+                    '🎉', '😡', '🙏', '💯', '😍', '🤔',
+                    // VeilChat signature quick reactions
+                    '😳', '🤪', '🥴',
+                  ].map((emoji) {
                     final isSelected = _messages[index]['reaction'] == emoji;
                     return GestureDetector(
                       onTap: () {
@@ -1282,7 +1628,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                             'reaction': newVal,
                             'sender': _currentUser,
                           });
-                          if (mounted) setState(() => _messages[index]['reaction'] = newVal);
+                          if (mounted)
+                            setState(
+                              () => _messages[index]['reaction'] = newVal,
+                            );
                         }
                         Navigator.pop(ctx);
                       },
@@ -1291,12 +1640,19 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? themeColor.withOpacity(0.2)
-                              : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04)),
+                              ? themeColor.withValues(alpha: 0.2)
+                              : (widget.isDark
+                                    ? Colors.white.withValues(alpha: 0.05)
+                                    : Colors.black.withValues(alpha: 0.04)),
                           borderRadius: BorderRadius.circular(14),
-                          border: isSelected ? Border.all(color: themeColor, width: 1.5) : null,
+                          border: isSelected
+                              ? Border.all(color: themeColor, width: 1.5)
+                              : null,
                         ),
-                        child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 26),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -1307,18 +1663,28 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     );
   }
 
-  Widget _grpActionBtn(BuildContext ctx, IconData icon, String label,
-      VoidCallback onTap, {Color? color}) {
+  Widget _grpActionBtn(
+    BuildContext ctx,
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    Color? color,
+  }) {
     final c = color ?? VeilTheme.accentColor;
     return GestureDetector(
-      onTap: () { Navigator.pop(ctx); onTap(); },
+      onTap: () {
+        Navigator.pop(ctx);
+        onTap();
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
-              color: c.withOpacity(0.12), shape: BoxShape.circle),
+              color: c.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: c, size: 22),
           ),
           const SizedBox(height: 5),
@@ -1336,8 +1702,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
 
     // Delete from local DB
     final db = DatabaseService();
-    await db.database.then((d) => d.delete(
-      'group_messages', where: 'id = ?', whereArgs: [dbId]));
+    await db.database.then(
+      (d) => d.delete('group_messages', where: 'id = ?', whereArgs: [dbId]),
+    );
 
     // Delete for everyone via server
     if (forEveryone && msg['sender'] == _currentUser && messageId != null) {
@@ -1350,9 +1717,14 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
 
     if (mounted) {
       setState(() => _messages.removeAt(index));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(forEveryone ? 'Deleted for everyone' : 'Deleted for you'),
-        backgroundColor: Colors.grey));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            forEveryone ? 'Deleted for everyone' : 'Deleted for you',
+          ),
+          backgroundColor: Colors.grey,
+        ),
+      );
     }
   }
 
@@ -1372,13 +1744,19 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Forward to...',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : Colors.black)),
+              Text(
+                'Forward to...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : Colors.black,
+                ),
+              ),
               const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.4),
+                  maxHeight: MediaQuery.of(context).size.height * 0.4,
+                ),
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: contacts.length,
@@ -1386,20 +1764,39 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                     final contact = contacts[i]['contact'] as String;
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: themeColor.withOpacity(0.15),
-                        child: Text(contact[0].toUpperCase(),
-                          style: TextStyle(color: themeColor, fontWeight: FontWeight.bold))),
-                      title: Text(contact,
+                        backgroundColor: themeColor.withValues(alpha: 0.15),
+                        child: Text(
+                          contact[0].toUpperCase(),
+                          style: TextStyle(
+                            color: themeColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        contact,
                         style: TextStyle(
                           color: widget.isDark ? Colors.white : Colors.black,
-                          fontWeight: FontWeight.w600)),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       onTap: () {
                         Navigator.pop(ctx);
-                        NetworkService().sendMessage(contact, 'TEXT', msg['content'] ?? '',
-                          metadata: {'forwarded': true, 'originalSender': msg['sender']});
+                        NetworkService().sendMessage(
+                          contact,
+                          'TEXT',
+                          msg['content'] ?? '',
+                          metadata: {
+                            'forwarded': true,
+                            'originalSender': msg['sender'],
+                          },
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Forwarded to $contact'),
-                            backgroundColor: Colors.green));
+                          SnackBar(
+                            content: Text('Forwarded to $contact'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
                       },
                     );
                   },
@@ -1452,27 +1849,32 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           final results = query.isEmpty
               ? const <Map<String, dynamic>>[]
               : _messages
-                  .where((m) =>
-                      (m['type'] ?? 'TEXT') == 'TEXT' &&
-                      (m['content'] ?? '')
-                          .toString()
-                          .toLowerCase()
-                          .contains(query))
-                  .toList()
-                  .reversed
-                  .toList();
+                    .where(
+                      (m) =>
+                          (m['type'] ?? 'TEXT') == 'TEXT' &&
+                          (m['content'] ?? '')
+                              .toString()
+                              .toLowerCase()
+                              .contains(query),
+                    )
+                    .toList()
+                    .reversed
+                    .toList();
           return Padding(
             padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
             child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(26)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(26),
+              ),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   height: MediaQuery.of(ctx).size.height * 0.7,
-                  color: (widget.isDark ? const Color(0xFF0D1117) : Colors.white)
-                      .withOpacity(0.94),
+                  color:
+                      (widget.isDark ? const Color(0xFF0D1117) : Colors.white)
+                          .withValues(alpha: 0.94),
                   child: Column(
                     children: [
                       Padding(
@@ -1482,18 +1884,21 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                           autofocus: true,
                           onChanged: (_) => setSheet(() {}),
                           style: TextStyle(
-                              color: widget.isDark
-                                  ? Colors.white
-                                  : Colors.black87),
+                            color: widget.isDark
+                                ? Colors.white
+                                : Colors.black87,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Search in this group…',
-                            prefixIcon: Icon(Icons.search_rounded,
-                                color: VeilTheme.accentColor, size: 20),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: VeilTheme.accentColor,
+                              size: 20,
+                            ),
                             filled: true,
-                            fillColor: (widget.isDark
-                                    ? Colors.white
-                                    : Colors.black)
-                                .withOpacity(0.05),
+                            fillColor:
+                                (widget.isDark ? Colors.white : Colors.black)
+                                    .withValues(alpha: 0.05),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide.none,
@@ -1509,10 +1914,11 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                                       ? 'Type to search messages'
                                       : 'No matches',
                                   style: TextStyle(
-                                      color: widget.isDark
-                                          ? Colors.white38
-                                          : Colors.black38,
-                                      fontSize: 13),
+                                    color: widget.isDark
+                                        ? Colors.white38
+                                        : Colors.black38,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               )
                             : ListView.builder(
@@ -1525,10 +1931,11 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                          fontSize: 13.5,
-                                          color: widget.isDark
-                                              ? Colors.white
-                                              : Colors.black87),
+                                        fontSize: 13.5,
+                                        color: widget.isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
                                     ),
                                     subtitle: Text(
                                       '${m['sender']} · '
@@ -1536,10 +1943,11 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                          fontSize: 11,
-                                          color: widget.isDark
-                                              ? Colors.white38
-                                              : Colors.black45),
+                                        fontSize: 11,
+                                        color: widget.isDark
+                                            ? Colors.white38
+                                            : Colors.black45,
+                                      ),
                                     ),
                                     onTap: () => Navigator.pop(ctx),
                                   );
@@ -1564,227 +1972,413 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     final groupOwner = grpObj?.owner ?? '';
     final isOwner = _currentUser == groupOwner;
     showDialog(
-
       context: context,
-      barrierColor: Colors.black.withOpacity(0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: widget.isDark
                   ? [const Color(0xFF0D1117), const Color(0xFF161B2E)]
                   : [const Color(0xFFF8F9FF), const Color(0xFFEEF2FF)],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: themeColor.withOpacity(0.25), width: 1.5),
-            boxShadow: [BoxShadow(color: themeColor.withOpacity(0.12), blurRadius: 40)],
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header with gradient
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [themeColor.withOpacity(0.12), VeilTheme.neonPurple.withOpacity(0.08)]),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                ),
-                child: Row(children: [
-                  Container(
-                    width: 52, height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: [themeColor, VeilTheme.neonPurple]),
-                      boxShadow: [BoxShadow(color: themeColor.withOpacity(0.4), blurRadius: 12)],
-                    ),
-                    child: Center(
-                      child: Text(widget.groupName[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(widget.groupName,
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
-                          color: widget.isDark ? Colors.white : Colors.black87)),
-                      const SizedBox(height: 3),
-                      Row(children: [
-                        Icon(Icons.people_rounded, size: 13, color: themeColor),
-                        const SizedBox(width: 4),
-                        Text('${_members.length} members',
-                          style: TextStyle(fontSize: 12, color: themeColor)),
-                      ]),
-                    ]),
-                  ),
-                  if (isOwner)
-                    GestureDetector(
-                      onTap: () { Navigator.pop(ctx); _showAddMemberDialog(); },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [themeColor.withOpacity(0.8), themeColor]),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 8)],
-                        ),
-                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.person_add_rounded, color: Colors.black, size: 14),
-                          SizedBox(width: 5),
-                          Text('Add', style: TextStyle(color: Colors.black,
-                            fontSize: 12, fontWeight: FontWeight.bold)),
-                        ]),
-                      ),
-                    ),
-                ]),
-              ),
-              // Member list
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 280),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: _members.length,
-                  itemBuilder: (ctx2, i) {
-                    final m = _members[i];
-                    final isOnline = _onlineMembers.contains(m);
-                    final isThisOwner = m == groupOwner;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: (widget.isDark ? Colors.white : Colors.black).withOpacity(0.04),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isThisOwner
-                              ? themeColor.withOpacity(0.3)
-                              : Colors.transparent),
-                      ),
-                      child: Row(children: [
-                        Stack(children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: isThisOwner
-                                ? themeColor.withOpacity(0.2)
-                                : (widget.isDark ? Colors.white12 : Colors.black.withOpacity(0.08)),
-                            child: Text(m[0].toUpperCase(),
-                              style: TextStyle(
-                                color: isThisOwner ? themeColor : (widget.isDark ? Colors.white70 : Colors.black54),
-                                fontWeight: FontWeight.bold, fontSize: 15)),
-                          ),
-                          Positioned(
-                            bottom: 0, right: 0,
-                            child: Container(
-                              width: 10, height: 10,
-                              decoration: BoxDecoration(
-                                color: isOnline ? const Color(0xFF00FF88) : Colors.grey.shade600,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: widget.isDark ? const Color(0xFF0D1117) : Colors.white,
-                                  width: 2)),
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(m, style: TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 14,
-                              color: widget.isDark ? Colors.white : Colors.black87)),
-                            Row(children: [
-                              if (isThisOwner) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: themeColor.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(8)),
-                                  child: Text('Owner',
-                                    style: TextStyle(fontSize: 9, color: themeColor,
-                                      fontWeight: FontWeight.bold)),
-                                ),
-                                const SizedBox(width: 6),
-                              ],
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isOnline
-                                      ? Colors.green.withOpacity(0.15)
-                                      : Colors.grey.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(8)),
-                                child: Text(isOnline ? 'Online' : 'Offline',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    color: isOnline ? Colors.greenAccent : Colors.grey,
-                                    fontWeight: FontWeight.w600)),
-                              ),
-                            ]),
-                          ],
-                        )),
-                        if (isOwner && m != _currentUser)
-                          GestureDetector(
-                            onTap: () { Navigator.pop(ctx); _confirmRemoveMember(m); },
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8)),
-                              child: const Icon(Icons.person_remove_rounded,
-                                color: Colors.redAccent, size: 17),
-                            ),
-                          ),
-                      ]),
-                    );
-                  },
-                ),
-              ),
-              // Footer actions
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                child: Row(children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(color: widget.isDark ? Colors.white24 : Colors.black12))),
-                      child: Text('Close',
-                        style: TextStyle(
-                          color: widget.isDark ? Colors.white60 : Colors.black54,
-                          fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () { Navigator.pop(ctx); _confirmLeaveGroup(); },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        backgroundColor: Colors.red.withOpacity(0.15),
-                        foregroundColor: Colors.redAccent,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: const BorderSide(color: Colors.red, width: 0.8))),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.exit_to_app_rounded, size: 15),
-                          SizedBox(width: 6),
-                          Text('Leave Group', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ]),
-                    ),
-                  ),
-                ]),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.25),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.12),
+                blurRadius: 40,
               ),
             ],
           ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header with gradient
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        themeColor.withValues(alpha: 0.12),
+                        VeilTheme.neonPurple.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [themeColor, VeilTheme.neonPurple],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: themeColor.withValues(alpha: 0.4),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            widget.groupName[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.groupName,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: widget.isDark
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.people_rounded,
+                                  size: 13,
+                                  color: themeColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${_members.length} members',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: themeColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isOwner)
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _showAddMemberDialog();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  themeColor.withValues(alpha: 0.8),
+                                  themeColor,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: themeColor.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.person_add_rounded,
+                                  color: Colors.black,
+                                  size: 14,
+                                ),
+                                SizedBox(width: 5),
+                                Text(
+                                  'Add',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Member list
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    itemCount: _members.length,
+                    itemBuilder: (ctx2, i) {
+                      final m = _members[i];
+                      final isOnline = _onlineMembers.contains(m);
+                      final isThisOwner = m == groupOwner;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (widget.isDark ? Colors.white : Colors.black)
+                              .withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isThisOwner
+                                ? themeColor.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: isThisOwner
+                                      ? themeColor.withValues(alpha: 0.2)
+                                      : (widget.isDark
+                                            ? Colors.white12
+                                            : Colors.black.withValues(
+                                                alpha: 0.08,
+                                              )),
+                                  child: Text(
+                                    m[0].toUpperCase(),
+                                    style: TextStyle(
+                                      color: isThisOwner
+                                          ? themeColor
+                                          : (widget.isDark
+                                                ? Colors.white70
+                                                : Colors.black54),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: isOnline
+                                          ? const Color(0xFF00FF88)
+                                          : Colors.grey.shade600,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: widget.isDark
+                                            ? const Color(0xFF0D1117)
+                                            : Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    m,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: widget.isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      if (isThisOwner) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: themeColor.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Owner',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: themeColor,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                      ],
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isOnline
+                                              ? Colors.green.withValues(
+                                                  alpha: 0.15,
+                                                )
+                                              : Colors.grey.withValues(
+                                                  alpha: 0.12,
+                                                ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          isOnline ? 'Online' : 'Offline',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: isOnline
+                                                ? Colors.greenAccent
+                                                : Colors.grey,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isOwner && m != _currentUser)
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  _confirmRemoveMember(m);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_remove_rounded,
+                                    color: Colors.redAccent,
+                                    size: 17,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // Footer actions
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
+                                color: widget.isDark
+                                    ? Colors.white24
+                                    : Colors.black12,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            'Close',
+                            style: TextStyle(
+                              color: widget.isDark
+                                  ? Colors.white60
+                                  : Colors.black54,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _confirmLeaveGroup();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            backgroundColor: Colors.red.withValues(alpha: 0.15),
+                            foregroundColor: Colors.redAccent,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: const BorderSide(
+                                color: Colors.red,
+                                width: 0.8,
+                              ),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.exit_to_app_rounded, size: 15),
+                              SizedBox(width: 6),
+                              Text(
+                                'Leave Group',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ), // SingleChildScrollView
         ),
       ),
@@ -1796,127 +2390,209 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     final themeColor = VeilTheme.accentColor;
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: widget.isDark
                   ? [const Color(0xFF0D1117), const Color(0xFF161B2E)]
-                  : [const Color(0xFFF8F9FF), const Color(0xFFEEF2FF)]),
+                  : [const Color(0xFFF8F9FF), const Color(0xFFEEF2FF)],
+            ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: themeColor.withOpacity(0.3), width: 1.5),
-            boxShadow: [BoxShadow(color: themeColor.withOpacity(0.15), blurRadius: 30)],
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.15),
+                blurRadius: 30,
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 52, height: 52,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [themeColor, themeColor.withOpacity(0.6)]),
-                  boxShadow: [BoxShadow(color: themeColor.withOpacity(0.35), blurRadius: 14)],
+                  gradient: LinearGradient(
+                    colors: [themeColor, themeColor.withValues(alpha: 0.6)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeColor.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 24),
+                child: const Icon(
+                  Icons.person_add_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               const SizedBox(height: 14),
-              Text('Add Member', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
-                color: widget.isDark ? Colors.white : Colors.black87)),
+              Text(
+                'Add Member',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Invite someone to join this group', textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12,
-                  color: widget.isDark ? Colors.white38 : Colors.black38)),
+              Text(
+                'Invite someone to join this group',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: widget.isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
               const SizedBox(height: 20),
               Container(
                 decoration: BoxDecoration(
-                  color: (widget.isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                  color: (widget.isDark ? Colors.white : Colors.black)
+                      .withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: themeColor.withOpacity(0.2))),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                child: Row(children: [
-                  Icon(Icons.person_search_rounded, color: themeColor, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      autofocus: true,
-                      style: TextStyle(
-                        color: widget.isDark ? Colors.white : Colors.black87, fontSize: 15),
-                      decoration: InputDecoration(
-                        hintText: 'Enter username',
-                        hintStyle: TextStyle(
-                          color: widget.isDark ? Colors.white30 : Colors.black38),
-                        border: InputBorder.none,
-                        labelStyle: TextStyle(color: themeColor.withOpacity(0.7))),
+                  border: Border.all(color: themeColor.withValues(alpha: 0.2)),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 4,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_search_rounded,
+                      color: themeColor,
+                      size: 18,
                     ),
-                  ),
-                ]),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        style: TextStyle(
+                          color: widget.isDark ? Colors.white : Colors.black87,
+                          fontSize: 15,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Enter username',
+                          hintStyle: TextStyle(
+                            color: widget.isDark
+                                ? Colors.white30
+                                : Colors.black38,
+                          ),
+                          border: InputBorder.none,
+                          labelStyle: TextStyle(
+                            color: themeColor.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: widget.isDark ? Colors.white24 : Colors.black12))),
-                    child: Text('Cancel', style: TextStyle(
-                      color: widget.isDark ? Colors.white54 : Colors.black45,
-                      fontWeight: FontWeight.w600)),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: widget.isDark
+                                ? Colors.white24
+                                : Colors.black12,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: widget.isDark
+                              ? Colors.white54
+                              : Colors.black45,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final username = controller.text.trim();
-                      if (username.isNotEmpty) {
-                        _network.sendPacket('GRP_ADD_MEMBER', {
-                          'groupId': widget.groupId,
-                          'member': username,
-                        });
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(children: [
-                              const Icon(Icons.check_circle_rounded,
-                                color: Colors.white, size: 16),
-                              const SizedBox(width: 8),
-                              Text('Added $username to group'),
-                            ]),
-                            backgroundColor: Colors.green,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12))));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: themeColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      shadowColor: themeColor.withOpacity(0.4), elevation: 4),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.person_add_rounded, size: 15),
-                        SizedBox(width: 6),
-                        Text('Add Member', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final username = controller.text.trim();
+                        if (username.isNotEmpty) {
+                          _network.sendPacket('GRP_ADD_MEMBER', {
+                            'groupId': widget.groupId,
+                            'member': username,
+                          });
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text('Added $username to group'),
+                                ],
+                              ),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: themeColor,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        shadowColor: themeColor.withValues(alpha: 0.4),
+                        elevation: 4,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.person_add_rounded, size: 15),
+                          SizedBox(width: 6),
+                          Text(
+                            'Add Member',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ),
         ),
-    ),
+      ),
     );
   }
 
@@ -1925,13 +2601,21 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
-        title: Text('Remove $member?',
-          style: TextStyle(color: widget.isDark ? Colors.white : Colors.black)),
-        content: Text('Remove $member from the group?',
-          style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black87)),
+        title: Text(
+          'Remove $member?',
+          style: TextStyle(color: widget.isDark ? Colors.white : Colors.black),
+        ),
+        content: Text(
+          'Remove $member from the group?',
+          style: TextStyle(
+            color: widget.isDark ? Colors.white70 : Colors.black87,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCEL')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL'),
+          ),
           TextButton(
             onPressed: () {
               _network.sendPacket('GRP_REMOVE_MEMBER', {
@@ -1954,7 +2638,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         title: const Text('Leave Group'),
         content: Text('Are you sure you want to leave "${widget.groupName}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL'),
+          ),
           TextButton(
             onPressed: () {
               _groupService.leaveGroup(widget.groupId);
@@ -1975,9 +2662,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
   }
 
   void _showSnack(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   String? _currentPlayingId;
@@ -1995,20 +2682,24 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     try {
       if (_currentPlayingId != null && _currentPlayingId != id) {
         await _audioPlayer.stop();
-        if (mounted) setState(() => _playingAudioMessages[_currentPlayingId!] = false);
+        if (mounted)
+          setState(() => _playingAudioMessages[_currentPlayingId!] = false);
       }
       _currentPlayingId = id;
       _audioPlayer.onDurationChanged.listen((d) {
-        if (mounted && _currentPlayingId == id) setState(() => _audioDurations[id] = d);
+        if (mounted && _currentPlayingId == id)
+          setState(() => _audioDurations[id] = d);
       });
       _audioPlayer.onPositionChanged.listen((p) {
-        if (mounted && _currentPlayingId == id) setState(() => _audioPositions[id] = p);
+        if (mounted && _currentPlayingId == id)
+          setState(() => _audioPositions[id] = p);
       });
       _audioPlayer.onPlayerComplete.listen((_) {
-        if (mounted) setState(() {
-          _playingAudioMessages[id] = false;
-          _currentPlayingId = null;
-        });
+        if (mounted)
+          setState(() {
+            _playingAudioMessages[id] = false;
+            _currentPlayingId = null;
+          });
       });
       await _audioPlayer.play(DeviceFileSource(content));
       if (mounted) setState(() => _playingAudioMessages[id] = true);
@@ -2031,9 +2722,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         width: 60,
         height: 60,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           shape: BoxShape.circle,
-          border: Border.all(color: color.withOpacity(0.5)),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
         ),
         child: Icon(icon, color: color),
       ),
@@ -2051,7 +2742,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     _msgController.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(
-        offset: (selection.start >= 0 ? selection.start : text.length) + emoji.length,
+        offset:
+            (selection.start >= 0 ? selection.start : text.length) +
+            emoji.length,
       ),
     );
   }
@@ -2070,7 +2763,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
-              color: (widget.isDark ? Colors.black : Colors.white).withOpacity(0.2),
+              color: (widget.isDark ? Colors.black : Colors.white).withValues(
+                alpha: 0.2,
+              ),
             ),
           ),
         ),
@@ -2088,7 +2783,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               Hero(
                 tag: 'group-${widget.groupId}',
                 child: CircleAvatar(
-                  backgroundColor: themeColor.withOpacity(0.2),
+                  backgroundColor: themeColor.withValues(alpha: 0.2),
                   child: Text(
                     widget.groupName[0].toUpperCase(),
                     style: TextStyle(
@@ -2164,15 +2859,18 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               children: [
                 Expanded(
                   child: _isLoading
-                      ? Center(child: CircularProgressIndicator(color: themeColor))
+                      ? Center(
+                          child: CircularProgressIndicator(color: themeColor),
+                        )
                       : _messages.isEmpty
-                          ? _buildEmptyState()
-                          : ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.fromLTRB(15, 60, 15, 20),
-                              itemCount: _messages.length,
-                              itemBuilder: (ctx, i) => _buildBubble(_messages[i], i),
-                            ),
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(15, 60, 15, 20),
+                          itemCount: _messages.length,
+                          itemBuilder: (ctx, i) =>
+                              _buildBubble(_messages[i], i),
+                        ),
                 ),
                 _buildInputArea(themeColor),
                 if (_showEmojiPicker) _buildEmojiPicker(),
@@ -2246,10 +2944,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               ),
               decoration: BoxDecoration(
                 color: isMe
-                    ? themeColor.withOpacity(0.2)
+                    ? themeColor.withValues(alpha: 0.2)
                     : (widget.isDark
-                        ? Colors.white.withOpacity(0.08)
-                        : Colors.black.withOpacity(0.05)),
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.05)),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
@@ -2258,13 +2956,15 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                 ),
                 border: Border.all(
                   color: isMe
-                      ? themeColor.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.1),
+                      ? themeColor.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
               child: Column(
-                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isMe
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   if (!isMe)
                     Padding(
@@ -2299,19 +2999,25 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                       onTap: () => _showExtractDialog(msg),
                       child: Container(
                         margin: const EdgeInsets.only(top: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              themeColor.withOpacity(0.18),
-                              VeilTheme.neonPurple.withOpacity(0.14),
+                              themeColor.withValues(alpha: 0.18),
+                              VeilTheme.neonPurple.withValues(alpha: 0.14),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: themeColor.withOpacity(0.5), width: 1),
+                          border: Border.all(
+                            color: themeColor.withValues(alpha: 0.5),
+                            width: 1,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: themeColor.withOpacity(0.2),
+                              color: themeColor.withValues(alpha: 0.2),
                               blurRadius: 8,
                             ),
                           ],
@@ -2319,7 +3025,11 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.lock_open_rounded, size: 13, color: themeColor),
+                            Icon(
+                              Icons.lock_open_rounded,
+                              size: 13,
+                              color: themeColor,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               'Tap to reveal hidden message',
@@ -2341,7 +3051,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                       Text(
                         _formatTimestamp(timestamp),
                         style: TextStyle(
-                          color: widget.isDark ? Colors.white38 : Colors.black38,
+                          color: widget.isDark
+                              ? Colors.white38
+                              : Colors.black38,
                           fontSize: 10,
                         ),
                       ),
@@ -2351,7 +3063,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                           child: Icon(
                             Icons.done_all,
                             size: 12,
-                            color: widget.isDark ? Colors.white30 : Colors.black45,
+                            color: widget.isDark
+                                ? Colors.white30
+                                : Colors.black45,
                           ),
                         ),
                     ],
@@ -2370,7 +3084,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  child: Text(msg['reaction'], style: const TextStyle(fontSize: 12)),
+                  child: Text(
+                    msg['reaction'],
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ),
           ],
@@ -2417,37 +3134,44 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
             ? const Color(0xFF1A2332)
             : const Color(0xFFEEF0F5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: VeilTheme.accentColor.withOpacity(0.2)),
+        border: Border.all(color: VeilTheme.accentColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_outlined,
+          Icon(
+            Icons.image_outlined,
             size: 40,
-            color: widget.isDark ? Colors.white24 : Colors.black26),
+            color: widget.isDark ? Colors.white24 : Colors.black26,
+          ),
           const SizedBox(height: 10),
           SizedBox(
             width: 80,
             child: LinearProgressIndicator(
-              backgroundColor: VeilTheme.accentColor.withOpacity(0.1),
+              backgroundColor: VeilTheme.accentColor.withValues(alpha: 0.1),
               color: VeilTheme.accentColor,
               minHeight: 2,
             ),
           ),
           const SizedBox(height: 8),
-          Text('Downloading...',
+          Text(
+            'Downloading...',
             style: TextStyle(
               fontSize: 11,
-              color: widget.isDark ? Colors.white38 : Colors.black38)),
+              color: widget.isDark ? Colors.white38 : Colors.black38,
+            ),
+          ),
           const SizedBox(height: 4),
           GestureDetector(
             onTap: () => _downloadGroupMedia(_messages[index], index),
-            child: Text('Retry',
+            child: Text(
+              'Retry',
               style: TextStyle(
                 fontSize: 11,
                 color: VeilTheme.accentColor,
-                decoration: TextDecoration.underline)),
+                decoration: TextDecoration.underline,
+              ),
+            ),
           ),
         ],
       ),
@@ -2473,7 +3197,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         width: 250,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+          color: widget.isDark
+              ? Colors.white10
+              : Colors.black.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -2484,7 +3210,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               onPressed: () {
                 _downloadGroupMedia(_messages[index], index);
               },
-              child: const Text('Retry Download', style: TextStyle(color: Colors.orange)),
+              child: const Text(
+                'Retry Download',
+                style: TextStyle(color: Colors.orange),
+              ),
             ),
           ],
         ),
@@ -2495,7 +3224,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       width: 250,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        color: widget.isDark
+            ? Colors.white10
+            : Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -2508,7 +3239,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: widget.isDark ? VeilTheme.accentColor : VeilTheme.holoPink,
+                    color: widget.isDark
+                        ? VeilTheme.accentColor
+                        : VeilTheme.holoPink,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -2547,9 +3280,13 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           Slider(
             value: position.inSeconds.toDouble(),
             min: 0,
-            max: duration.inSeconds.toDouble() > 0 ? duration.inSeconds.toDouble() : 1.0,
+            max: duration.inSeconds.toDouble() > 0
+                ? duration.inSeconds.toDouble()
+                : 1.0,
             onChanged: (_) {},
-            activeColor: widget.isDark ? VeilTheme.accentColor : VeilTheme.holoPink,
+            activeColor: widget.isDark
+                ? VeilTheme.accentColor
+                : VeilTheme.holoPink,
           ),
         ],
       ),
@@ -2561,12 +3298,15 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     final meta2 = (metadata is Map) ? metadata : {};
     String filename = (meta2['filename'] as String?) ?? '';
     final content2 = msg['content']?.toString() ?? '';
-    if (filename.isEmpty && content2.contains('/')) filename = content2.split('/').last;
+    if (filename.isEmpty && content2.contains('/'))
+      filename = content2.split('/').last;
     if (filename.isEmpty) filename = 'file';
     int size = (meta2['size'] as num?)?.toInt() ?? 0;
     final String sizeStr = size > 1024 * 1024
         ? '${(size / (1024 * 1024)).toStringAsFixed(1)} MB'
-        : size > 0 ? '${(size / 1024).toStringAsFixed(1)} KB' : 'Unknown size';
+        : size > 0
+        ? '${(size / 1024).toStringAsFixed(1)} KB'
+        : 'Unknown size';
 
     final String content = msg['content'] ?? '';
 
@@ -2575,7 +3315,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
         width: 250,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+          color: widget.isDark
+              ? Colors.white10
+              : Colors.black.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -2586,7 +3328,10 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               onPressed: () {
                 _downloadGroupMedia(msg, index);
               },
-              child: const Text('Retry Download', style: TextStyle(color: Colors.orange)),
+              child: const Text(
+                'Retry Download',
+                style: TextStyle(color: Colors.orange),
+              ),
             ),
           ],
         ),
@@ -2597,7 +3342,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
       width: 250,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        color: widget.isDark
+            ? Colors.white10
+            : Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
@@ -2633,7 +3380,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
           // Open - image opens in-app, others open with native app
           IconButton(
             icon: Icon(
-              _isImageFile(filename) ? Icons.open_in_full_rounded : Icons.open_in_new_rounded,
+              _isImageFile(filename)
+                  ? Icons.open_in_full_rounded
+                  : Icons.open_in_new_rounded,
               color: widget.isDark ? VeilTheme.accentColor : VeilTheme.holoPink,
             ),
             onPressed: () async {
@@ -2652,11 +3401,14 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                     child: Stack(
                       children: [
                         InteractiveViewer(
-                          panEnabled: true, minScale: 0.5, maxScale: 4.0,
+                          panEnabled: true,
+                          minScale: 0.5,
+                          maxScale: 4.0,
                           child: Image.file(file, fit: BoxFit.contain),
                         ),
                         Positioned(
-                          top: 8, right: 8,
+                          top: 8,
+                          right: 8,
                           child: IconButton(
                             icon: const Icon(Icons.close, color: Colors.white),
                             onPressed: () => Navigator.pop(context),
@@ -2669,7 +3421,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
               } else {
                 final result = await OpenFile.open(content);
                 if (result.type != ResultType.done) {
-                  await Share.shareXFiles([XFile(file.path)], text: 'Shared from VeilChat');
+                  await Share.shareXFiles([
+                    XFile(file.path),
+                  ], text: 'Shared from VeilChat');
                 }
               }
             },
@@ -2679,7 +3433,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
             onPressed: () async {
               final file = File(content);
               if (await file.exists()) {
-                await Share.shareXFiles([XFile(file.path)], text: 'Shared from VeilChat');
+                await Share.shareXFiles([
+                  XFile(file.path),
+                ], text: 'Shared from VeilChat');
               } else {
                 _showSnack('File not found', Colors.red);
               }
@@ -2708,12 +3464,17 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
             child: Row(
               children: [
                 IconButton(
-                  icon: Icon(Icons.add_circle_outline_rounded, color: themeColor),
+                  icon: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: themeColor,
+                  ),
                   onPressed: _showAttachmentMenu,
                 ),
                 IconButton(
                   icon: Icon(
-                    _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined,
+                    _showEmojiPicker
+                        ? Icons.keyboard
+                        : Icons.emoji_emotions_outlined,
                     color: themeColor,
                   ),
                   onPressed: _toggleEmojiPicker,
@@ -2734,7 +3495,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                         color: widget.isDark ? Colors.white30 : Colors.black38,
                       ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                      ),
                     ),
                     onSubmitted: (value) {
                       if (value.trim().isNotEmpty) _sendMessage();
@@ -2753,14 +3516,18 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: themeColor.withOpacity(0.4),
+                        color: themeColor.withValues(alpha: 0.4),
                         blurRadius: 8,
                       ),
                     ],
                   ),
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     onPressed: _sendMessage,
                   ),
                 ),
@@ -2776,7 +3543,9 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
     return Container(
       height: 250,
       decoration: BoxDecoration(
-        color: widget.isDark ? const Color(0xFF050A15) : const Color(0xFFF2F6FF),
+        color: widget.isDark
+            ? const Color(0xFF050A15)
+            : const Color(0xFFF2F6FF),
         border: Border(
           top: BorderSide(
             color: widget.isDark ? Colors.white12 : Colors.black12,
@@ -2821,10 +3590,13 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen>
                     borderRadius: BorderRadius.circular(8),
                     color: widget.isDark
                         ? Colors.white10
-                        : Colors.black.withOpacity(0.03),
+                        : Colors.black.withValues(alpha: 0.03),
                   ),
                   child: Center(
-                    child: Text(_emojis[i], style: const TextStyle(fontSize: 22)),
+                    child: Text(
+                      _emojis[i],
+                      style: const TextStyle(fontSize: 22),
+                    ),
                   ),
                 ),
               ),
@@ -2852,13 +3624,13 @@ class _GroupChatBackgroundPainter extends CustomPainter {
     final rect = Offset.zero & size;
     canvas.drawRect(
       rect,
-      Paint()..color = isDark ? const Color(0xFF02050A) : const Color(0xFFF8FAFC),
+      Paint()
+        ..color = isDark ? const Color(0xFF02050A) : const Color(0xFFF8FAFC),
     );
     final rng = Random(seed.hashCode);
     for (int i = 0; i < 6; i++) {
       final orbPaint = Paint()
-        ..color = themeColor.withOpacity(isDark ? 0.03 : 0.05)
-        ;
+        ..color = themeColor.withValues(alpha: isDark ? 0.03 : 0.05);
       canvas.drawCircle(
         Offset(rng.nextDouble() * size.width, rng.nextDouble() * size.height),
         80.0 + rng.nextDouble() * 150,

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -30,29 +29,30 @@ class CallScreen extends StatefulWidget {
 
 class _CallScreenState extends State<CallScreen>
     with SingleTickerProviderStateMixin {
-  final _localRenderer  = RTCVideoRenderer();
+  final _localRenderer = RTCVideoRenderer();
   final _remoteRenderer = RTCVideoRenderer();
 
   // ✅ BUG FIX #1: Fresh instance per call (NOT singleton)
   final _webrtc = WebRTCService();
-  final _db     = DatabaseService();
+  final _db = DatabaseService();
 
   late AnimationController _pulseController;
-  late Animation<double>   _pulseAnimation;
+  late Animation<double> _pulseAnimation;
   StreamSubscription? _callSubscription;
 
-  String _callStatus  = 'Initializing...';
-  bool _isMuted       = false;
-  bool _isCameraOff   = false;
-  bool _isSpeakerOn   = false; // audio output: false = earpiece, true = loudspeaker
-  bool _isDisposed    = false;
-  bool _callEnding    = false;
-  bool _offerSent     = false; // ✅ guard against double createOffer
+  String _callStatus = 'Initializing...';
+  bool _isMuted = false;
+  bool _isCameraOff = false;
+  bool _isSpeakerOn =
+      false; // audio output: false = earpiece, true = loudspeaker
+  bool _isDisposed = false;
+  bool _callEnding = false;
+  bool _offerSent = false; // ✅ guard against double createOffer
   // ✅ FIX: incoming call must not show "Connected" until user presses Accept
-  bool _userAccepted  = false;
+  bool _userAccepted = false;
 
-  int?  _callStartTime;
-  bool  _wasConnected = false;
+  int? _callStartTime;
+  bool _wasConnected = false;
 
   // ✅ BUG FIX #3: debounce timer — don't end call on transient ICE states
   Timer? _iceFailTimer;
@@ -61,10 +61,12 @@ class _CallScreenState extends State<CallScreen>
   void initState() {
     super.initState();
     _pulseController = AnimationController(
-        vsync: this, duration: const Duration(seconds: 2))
-      ..repeat(reverse: true);
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _callStartTime = DateTime.now().millisecondsSinceEpoch;
     _initCall();
   }
@@ -83,9 +85,13 @@ class _CallScreenState extends State<CallScreen>
       if (!granted) {
         if (mounted && !_isDisposed) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(widget.isAudioOnly
-                ? 'Microphone permission is required for calls'
-                : 'Camera and microphone permissions are required for video calls')),
+            SnackBar(
+              content: Text(
+                widget.isAudioOnly
+                    ? 'Microphone permission is required for calls'
+                    : 'Camera and microphone permissions are required for video calls',
+              ),
+            ),
           );
           Navigator.pop(context);
         }
@@ -107,7 +113,7 @@ class _CallScreenState extends State<CallScreen>
           if (!widget.isIncoming || _userAccepted) {
             setState(() {
               _remoteRenderer.srcObject = stream;
-              _callStatus  = 'Connected';
+              _callStatus = 'Connected';
               _wasConnected = true;
             });
             _iceFailTimer?.cancel();
@@ -146,7 +152,8 @@ class _CallScreenState extends State<CallScreen>
               _handleEndCall(isRemote: true);
             }
           });
-        } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        } else if (state ==
+            RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
           // Transient — show status but don't end call
           if (mounted && _wasConnected) {
             setState(() => _callStatus = 'Reconnecting...');
@@ -176,10 +183,12 @@ class _CallScreenState extends State<CallScreen>
       _setupSignalListener();
 
       if (widget.isIncoming) {
-        setState(() => _callStatus =
-            'Incoming ${widget.isAudioOnly ? 'Audio' : 'Video'} Call...');
+        setState(
+          () => _callStatus =
+              'Incoming ${widget.isAudioOnly ? 'Audio' : 'Video'} Call...',
+        );
         if (widget.initialOffer != null) {
-          final sdp   = widget.initialOffer!['sdp']?.toString();
+          final sdp = widget.initialOffer!['sdp']?.toString();
           final type2 = widget.initialOffer!['type']?.toString();
           if (sdp != null && type2 != null) {
             try {
@@ -199,8 +208,9 @@ class _CallScreenState extends State<CallScreen>
     } catch (e) {
       debugPrint('❌ _initCall error: $e');
       if (mounted && !_isDisposed) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Call failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Call failed: $e')));
         Navigator.pop(context);
       }
     }
@@ -220,7 +230,7 @@ class _CallScreenState extends State<CallScreen>
           // ✅ BUG FIX #5: null-safe data access (was crashing if data['data'] null)
           final answerData = data['data'];
           if (answerData == null) break;
-          final sdp  = answerData['sdp']?.toString();
+          final sdp = answerData['sdp']?.toString();
           final type = answerData['type']?.toString();
           if (sdp != null && type != null) {
             try {
@@ -255,8 +265,8 @@ class _CallScreenState extends State<CallScreen>
   void _onIceCandidate(RTCIceCandidate candidate) {
     if (_isDisposed || _callEnding) return;
     NetworkService().sendCallSignal(widget.contactName, 'ICE', {
-      'candidate':     candidate.candidate,
-      'sdpMid':        candidate.sdpMid,
+      'candidate': candidate.candidate,
+      'sdpMid': candidate.sdpMid,
       'sdpMLineIndex': candidate.sdpMLineIndex,
     });
     debugPrint('📞 Sent ICE to ${widget.contactName}');
@@ -305,18 +315,18 @@ class _CallScreenState extends State<CallScreen>
     try {
       final owner = NetworkService().currentUser;
       if (owner == null) return;
-      final endTime  = DateTime.now().millisecondsSinceEpoch;
-      final start    = _callStartTime ?? endTime;
+      final endTime = DateTime.now().millisecondsSinceEpoch;
+      final start = _callStartTime ?? endTime;
       final duration = _wasConnected ? ((endTime - start) ~/ 1000) : null;
       await _db.saveCallLog(
-        owner:     owner,
-        contact:   widget.contactName,
-        callType:  widget.isAudioOnly ? 'audio' : 'video',
-        direction: widget.isIncoming  ? 'incoming' : 'outgoing',
+        owner: owner,
+        contact: widget.contactName,
+        callType: widget.isAudioOnly ? 'audio' : 'video',
+        direction: widget.isIncoming ? 'incoming' : 'outgoing',
         startTime: start,
-        endTime:   endTime,
-        duration:  duration,
-        status:    _wasConnected ? 'completed' : 'missed',
+        endTime: endTime,
+        duration: duration,
+        status: _wasConnected ? 'completed' : 'missed',
       );
     } catch (e) {
       debugPrint('❌ saveCallLog error: $e');
@@ -334,14 +344,22 @@ class _CallScreenState extends State<CallScreen>
     } catch (_) {}
     _webrtc.dispose();
     // ✅ FIX: Set srcObject to null BEFORE dispose to prevent Surface.release NPE on Android 8
-    try { _localRenderer.srcObject  = null; } catch (_) {}
-    try { _remoteRenderer.srcObject = null; } catch (_) {}
+    try {
+      _localRenderer.srcObject = null;
+    } catch (_) {}
+    try {
+      _remoteRenderer.srcObject = null;
+    } catch (_) {}
     // Delay dispose to let Flutter finish rendering cycle.
     // dispose() is async and can reject (Surface.release NPE on some Android
     // devices) — await + catch so it never becomes an unhandled exception.
     Future.delayed(const Duration(milliseconds: 300), () async {
-      try { await _localRenderer.dispose(); } catch (_) {}
-      try { await _remoteRenderer.dispose(); } catch (_) {}
+      try {
+        await _localRenderer.dispose();
+      } catch (_) {}
+      try {
+        await _remoteRenderer.dispose();
+      } catch (_) {}
     });
   }
 
@@ -379,7 +397,7 @@ class _CallScreenState extends State<CallScreen>
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, dynamic result) {
         if (didPop && !_callEnding) _handleEndCall();
       },
       child: Scaffold(
@@ -417,66 +435,99 @@ class _CallScreenState extends State<CallScreen>
   }
 
   Widget _buildAudioCallUI() => Center(
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const SizedBox(height: 80),
-      ScaleTransition(
-        scale: _wasConnected
-            ? const AlwaysStoppedAnimation(1.0)
-            : _pulseAnimation,
-        child: _buildAvatar()),
-      const SizedBox(height: 24),
-      Text(widget.contactName,
-        style: const TextStyle(
-            fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 10),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(
-          widget.isAudioOnly ? Icons.mic : Icons.videocam,
-          color: Colors.white54, size: 14),
-        const SizedBox(width: 4),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 80),
+        ScaleTransition(
+          scale: _wasConnected
+              ? const AlwaysStoppedAnimation(1.0)
+              : _pulseAnimation,
+          child: _buildAvatar(),
+        ),
+        const SizedBox(height: 24),
         Text(
-          widget.isAudioOnly ? 'Audio Call' : 'Video Call',
-          style: const TextStyle(color: Colors.white54, fontSize: 13)),
-      ]),
-      const SizedBox(height: 6),
-      // ✅ FIX: Only show status if not yet connected (avoid "Connected Connected")
-      if (!_wasConnected)
-        Text(_callStatus,
+          widget.contactName,
           style: const TextStyle(
+            fontSize: 30,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              widget.isAudioOnly ? Icons.mic : Icons.videocam,
+              color: Colors.white54,
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              widget.isAudioOnly ? 'Audio Call' : 'Video Call',
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // ✅ FIX: Only show status if not yet connected (avoid "Connected Connected")
+        if (!_wasConnected)
+          Text(
+            _callStatus,
+            style: const TextStyle(
               fontSize: 15,
               color: Colors.white70,
-              letterSpacing: 1.2))
-      else
-        Text('Connected',
-          style: const TextStyle(
+              letterSpacing: 1.2,
+            ),
+          )
+        else
+          Text(
+            'Connected',
+            style: const TextStyle(
               fontSize: 15,
               color: Colors.greenAccent,
               fontWeight: FontWeight.w600,
-              letterSpacing: 1.2)),
-    ]),
+              letterSpacing: 1.2,
+            ),
+          ),
+      ],
+    ),
   );
 
-  Widget _buildVideoCallUI() => Stack(children: [
-    Positioned.fill(
-      child: _remoteRenderer.srcObject != null
-          ? RTCVideoView(_remoteRenderer,
-              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)
-          : _buildAudioCallUI(),
-    ),
-    if (_localRenderer.srcObject != null && !_isCameraOff)
-      Positioned(
-        right: 16, top: 60, width: 96, height: 144,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white70, width: 1.5),
-              borderRadius: BorderRadius.circular(12)),
-            child: RTCVideoView(_localRenderer,
-              mirror: true,
-              objectFit:
-                  RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)))),
-  ]);
+  Widget _buildVideoCallUI() => Stack(
+    children: [
+      Positioned.fill(
+        child: _remoteRenderer.srcObject != null
+            ? RTCVideoView(
+                _remoteRenderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              )
+            : _buildAudioCallUI(),
+      ),
+      if (_localRenderer.srcObject != null && !_isCameraOff)
+        Positioned(
+          right: 16,
+          top: 60,
+          width: 96,
+          height: 144,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white70, width: 1.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: RTCVideoView(
+                _localRenderer,
+                mirror: true,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              ),
+            ),
+          ),
+        ),
+    ],
+  );
 
   Widget _buildAvatar() => Container(
     padding: const EdgeInsets.all(4),
@@ -484,57 +535,88 @@ class _CallScreenState extends State<CallScreen>
       shape: BoxShape.circle,
       border: Border.all(
         color: _wasConnected ? Colors.greenAccent : Colors.blueAccent,
-        width: 2.5),
-      boxShadow: [BoxShadow(
-        color: (_wasConnected ? Colors.greenAccent : Colors.blueAccent)
-            .withOpacity(0.35),
-        blurRadius: 50, spreadRadius: 2)]),
+        width: 2.5,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: (_wasConnected ? Colors.greenAccent : Colors.blueAccent)
+              .withValues(alpha: 0.35),
+          blurRadius: 50,
+          spreadRadius: 2,
+        ),
+      ],
+    ),
     child: CircleAvatar(
       radius: 62,
       backgroundColor: Colors.blueGrey[900],
       child: Text(
         widget.contactName[0].toUpperCase(),
         style: const TextStyle(
-            fontSize: 48, color: Colors.white, fontWeight: FontWeight.bold))));
+          fontSize: 48,
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+  );
 
   // ✅ BUG FIX #1: SafeArea + horizontal margin keeps the toolbar clear of
   // gesture-navigation insets and rounded display corners.
   Widget _buildControls() => Positioned(
-    bottom: 0, left: 0, right: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     child: SafeArea(
       top: false,
       minimum: const EdgeInsets.only(bottom: 24),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (_wasConnected)
-            Text(_callStatus,
-              style: const TextStyle(color: Colors.greenAccent, fontSize: 13)),
-          const SizedBox(height: 16),
-          if (widget.isIncoming && !_wasConnected)
-            _buildIncomingActions()
-          else
-            _buildActiveActions(),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_wasConnected)
+              Text(
+                _callStatus,
+                style: const TextStyle(color: Colors.greenAccent, fontSize: 13),
+              ),
+            const SizedBox(height: 16),
+            if (widget.isIncoming && !_wasConnected)
+              _buildIncomingActions()
+            else
+              _buildActiveActions(),
+          ],
+        ),
       ),
-    ));
+    ),
+  );
 
   Widget _buildIncomingActions() => Row(
     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
     children: [
-      Column(mainAxisSize: MainAxisSize.min, children: [
-        _circleBtn(Icons.call_end, Colors.red, () => _handleEndCall()),
-        const SizedBox(height: 6),
-        const Text('Decline',
-          style: TextStyle(color: Colors.white70, fontSize: 12)),
-      ]),
-      Column(mainAxisSize: MainAxisSize.min, children: [
-        _pulseButton(Icons.call, Colors.green, _acceptCall),
-        const SizedBox(height: 6),
-        const Text('Accept',
-          style: TextStyle(color: Colors.white70, fontSize: 12)),
-      ]),
-    ]);
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _circleBtn(Icons.call_end, Colors.red, () => _handleEndCall()),
+          const SizedBox(height: 6),
+          const Text(
+            'Decline',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ],
+      ),
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _pulseButton(Icons.call, Colors.green, _acceptCall),
+          const SizedBox(height: 6),
+          const Text(
+            'Accept',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ],
+      ),
+    ],
+  );
 
   /// ✅ BUG FIX #1: "RIGHT OVERFLOWED BY 2.0 PIXELS".
   ///
@@ -563,7 +645,7 @@ class _CallScreenState extends State<CallScreen>
         horizontal: isVideo ? 10 : 20,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(32),
         border: Border.all(color: Colors.white12),
       ),
@@ -578,7 +660,8 @@ class _CallScreenState extends State<CallScreen>
               _isMuted ? Colors.redAccent : Colors.white,
               _toggleMute,
               iconSize: iconSize,
-              padding: btnPadding),
+              padding: btnPadding,
+            ),
             SizedBox(width: isVideo ? 6 : 10),
             _circleBtn(
               _isSpeakerOn
@@ -587,14 +670,16 @@ class _CallScreenState extends State<CallScreen>
               _isSpeakerOn ? VeilTheme.accentColor : Colors.white,
               _toggleSpeaker,
               iconSize: iconSize,
-              padding: btnPadding),
+              padding: btnPadding,
+            ),
             SizedBox(width: isVideo ? 6 : 10),
             _circleBtn(
               Icons.call_end_rounded,
               Colors.red,
               () => _handleEndCall(),
               iconSize: iconSize,
-              padding: btnPadding),
+              padding: btnPadding,
+            ),
             if (isVideo) ...[
               const SizedBox(width: 6),
               _circleBtn(
@@ -604,14 +689,16 @@ class _CallScreenState extends State<CallScreen>
                 _isCameraOff ? Colors.redAccent : Colors.white,
                 _toggleCamera,
                 iconSize: iconSize,
-                padding: btnPadding),
+                padding: btnPadding,
+              ),
               const SizedBox(width: 6),
               _circleBtn(
                 Icons.cameraswitch_rounded,
                 Colors.white,
                 _switchCamera,
                 iconSize: iconSize,
-                padding: btnPadding),
+                padding: btnPadding,
+              ),
             ],
           ],
         ),
@@ -625,28 +712,33 @@ class _CallScreenState extends State<CallScreen>
     VoidCallback onTap, {
     double iconSize = 28,
     double padding = 14,
-  }) =>
-    Material(
-      color: color.withOpacity(0.15),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.all(padding),
-          child: Icon(icon, color: color, size: iconSize))));
-
+  }) => Material(
+    color: color.withValues(alpha: 0.15),
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.all(padding),
+        child: Icon(icon, color: color, size: iconSize),
+      ),
+    ),
+  );
 
   Widget _pulseButton(IconData icon, Color color, VoidCallback onTap) =>
-    ScaleTransition(
-      scale: _pulseAnimation,
-      child: Material(
-        color: color,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: const Padding(
-            padding: EdgeInsets.all(16),
-            child: Icon(Icons.call, color: Colors.white, size: 32)))));
+      ScaleTransition(
+        scale: _pulseAnimation,
+        child: Material(
+          color: color,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Icon(Icons.call, color: Colors.white, size: 32),
+            ),
+          ),
+        ),
+      );
 }

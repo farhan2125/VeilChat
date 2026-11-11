@@ -78,7 +78,10 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
 
     _groupUpdateSub = _groupService.groupUpdateStream.listen((group) {});
     _groupMessageSub = _groupService.groupMessageStream.listen((message) {
-      if (mounted) setState(() { _groups = _groupService.groups; });
+      if (mounted)
+        setState(() {
+          _groups = _groupService.groups;
+        });
     });
   }
 
@@ -102,153 +105,214 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: widget.isDark
                   ? [const Color(0xFF0D1117), const Color(0xFF161B2E)]
                   : [const Color(0xFFF8F9FF), const Color(0xFFEEF2FF)],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: themeColor.withOpacity(0.3), width: 1.5),
-            boxShadow: [BoxShadow(color: themeColor.withOpacity(0.15), blurRadius: 30)],
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.15),
+                blurRadius: 30,
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon
-              Container(
-                width: 60, height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [themeColor, VeilTheme.neonPurple]),
-                  boxShadow: [BoxShadow(color: themeColor.withOpacity(0.4), blurRadius: 18)],
-                ),
-                child: const Icon(Icons.group_add_rounded, color: Colors.white, size: 28),
-              ),
-              const SizedBox(height: 14),
-              Text('Create New Group',
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : Colors.black87)),
-              const SizedBox(height: 4),
-              Text('Start a secure encrypted group chat',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12,
-                  color: widget.isDark ? Colors.white38 : Colors.black38)),
-              const SizedBox(height: 22),
-              // Group name field
-              _groupTextField(
-                controller: nameController,
-                label: 'Group name',
-                icon: Icons.group_rounded,
-                isDark: widget.isDark,
-                themeColor: themeColor,
-              ),
-              const SizedBox(height: 14),
-              // Members field
-              _groupTextField(
-                controller: membersController,
-                label: 'Add members (comma separated)',
-                icon: Icons.people_rounded,
-                isDark: widget.isDark,
-                themeColor: themeColor,
-                hint: 'alice, bob, charlie',
-              ),
-              const SizedBox(height: 8),
-              Row(children: [
-                Icon(Icons.info_outline_rounded, size: 12, color: themeColor.withOpacity(0.6)),
-                const SizedBox(width: 5),
-                Text('You will be added as the group owner',
-                  style: TextStyle(fontSize: 11,
-                    color: widget.isDark ? Colors.white30 : Colors.black38)),
-              ]),
-              const SizedBox(height: 24),
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(
-                          color: widget.isDark ? Colors.white24 : Colors.black12))),
-                    child: Text('Cancel', style: TextStyle(
-                      color: widget.isDark ? Colors.white54 : Colors.black45,
-                      fontWeight: FontWeight.w600)),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [themeColor, VeilTheme.neonPurple],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeColor.withValues(alpha: 0.4),
+                        blurRadius: 18,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.group_add_rounded,
+                    color: Colors.white,
+                    size: 28,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-              final name = nameController.text.trim();
-              final membersStr = membersController.text.trim();
-              if (name.isEmpty) return;
-
-              final currentUser = _currentUser ?? "";
-              final existingGroups = await DatabaseService().getGroups(currentUser);
-              if (existingGroups.any((g) => g['name'] == name)) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Group with that name already exists!'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              List<String> members = [];
-              if (membersStr.isNotEmpty) {
-                members = membersStr
-                    .split(',')
-                    .map((e) => e.trim())
-                    .where((e) => e.isNotEmpty)
-                    .toList();
-              }
-
-              Navigator.pop(ctx);
-              final success = await _groupService.createGroup(
-                groupName: name,
-                members: members,
-              );
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Group "$name" created'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: themeColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                      shadowColor: themeColor.withOpacity(0.4),
-                      elevation: 4),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.group_add_rounded, size: 15),
-                        SizedBox(width: 6),
-                        Text('Create Group',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      ]),
+                const SizedBox(height: 14),
+                Text(
+                  'Create New Group',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: widget.isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-              ]),
-            ],
-          ),
+                const SizedBox(height: 4),
+                Text(
+                  'Start a secure encrypted group chat',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: widget.isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                // Group name field
+                _groupTextField(
+                  controller: nameController,
+                  label: 'Group name',
+                  icon: Icons.group_rounded,
+                  isDark: widget.isDark,
+                  themeColor: themeColor,
+                ),
+                const SizedBox(height: 14),
+                // Members field
+                _groupTextField(
+                  controller: membersController,
+                  label: 'Add members (comma separated)',
+                  icon: Icons.people_rounded,
+                  isDark: widget.isDark,
+                  themeColor: themeColor,
+                  hint: 'alice, bob, charlie',
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 12,
+                      color: themeColor.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'You will be added as the group owner',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: widget.isDark ? Colors.white30 : Colors.black38,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(
+                              color: widget.isDark
+                                  ? Colors.white24
+                                  : Colors.black12,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: widget.isDark
+                                ? Colors.white54
+                                : Colors.black45,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final name = nameController.text.trim();
+                          final membersStr = membersController.text.trim();
+                          if (name.isEmpty) return;
+
+                          final currentUser = _currentUser ?? "";
+                          final existingGroups = await DatabaseService()
+                              .getGroups(currentUser);
+                          if (existingGroups.any((g) => g['name'] == name)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Group with that name already exists!',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          List<String> members = [];
+                          if (membersStr.isNotEmpty) {
+                            members = membersStr
+                                .split(',')
+                                .map((e) => e.trim())
+                                .where((e) => e.isNotEmpty)
+                                .toList();
+                          }
+
+                          Navigator.pop(ctx);
+                          final success = await _groupService.createGroup(
+                            groupName: name,
+                            members: members,
+                          );
+                          if (success && mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Group "$name" created'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: themeColor,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          shadowColor: themeColor.withValues(alpha: 0.4),
+                          elevation: 4,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.group_add_rounded, size: 15),
+                            SizedBox(width: 6),
+                            Text(
+                              'Create Group',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ), // SingleChildScrollView
         ),
       ),
@@ -256,44 +320,51 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
   }
 
   Widget _groupTextField({
-      required TextEditingController controller,
-      required String label,
-      required IconData icon,
-      required bool isDark,
-      required Color themeColor,
-      String? hint,
-    }) {
-      return Container(
-        decoration: BoxDecoration(
-          color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: themeColor.withOpacity(0.2)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        child: Row(children: [
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required bool isDark,
+    required Color themeColor,
+    String? hint,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: themeColor.withValues(alpha: 0.2)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      child: Row(
+        children: [
           Icon(icon, color: themeColor, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,
               style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87, fontSize: 15),
+                color: isDark ? Colors.white : Colors.black87,
+                fontSize: 15,
+              ),
               decoration: InputDecoration(
-                  labelText: label,
-                  hintText: hint,
-                  hintStyle: TextStyle(
-                      // Fixed: 'white20' is not a valid member, used 'white24' instead
-                      color: isDark ? Colors.white24 : Colors.black26, 
-                      fontSize: 13),
-                  labelStyle: TextStyle(
-                      color: themeColor.withOpacity(0.7), 
-                      fontSize: 13),
-                  border: InputBorder.none),
+                labelText: label,
+                hintText: hint,
+                hintStyle: TextStyle(
+                  // Fixed: 'white20' is not a valid member, used 'white24' instead
+                  color: isDark ? Colors.white24 : Colors.black26,
+                  fontSize: 13,
+                ),
+                labelStyle: TextStyle(
+                  color: themeColor.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
+                border: InputBorder.none,
+              ),
             ),
           ),
-        ]),
-      );
-    }
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -318,12 +389,12 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: themeColor.withOpacity(0.3),
+                              color: themeColor.withValues(alpha: 0.3),
                               blurRadius: 15,
                             ),
                           ],
                           border: Border.all(
-                            color: themeColor.withOpacity(0.5),
+                            color: themeColor.withValues(alpha: 0.5),
                             width: 1.5,
                           ),
                         ),
@@ -366,23 +437,28 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
               child: _isLoading
                   ? Center(child: CircularProgressIndicator(color: themeColor))
                   : _groups.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(bottom: 120),
-                          child: _buildEmptyState(),
-                        )
-                      : RefreshIndicator(
-                          color: themeColor,
-                          onRefresh: () async {
-                            if (_currentUser != null) {
-                              await _groupService.loadGroups(_currentUser!);
-                            }
-                          },
-                          child: ListView.builder(
-                            padding: const EdgeInsets.only(left: 15, right: 15, top: 10, bottom: 150),
-                            itemCount: _groups.length,
-                            itemBuilder: (ctx, i) => _buildGroupTile(_groups[i]),
-                          ),
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 120),
+                      child: _buildEmptyState(),
+                    )
+                  : RefreshIndicator(
+                      color: themeColor,
+                      onRefresh: () async {
+                        if (_currentUser != null) {
+                          await _groupService.loadGroups(_currentUser!);
+                        }
+                      },
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(
+                          left: 15,
+                          right: 15,
+                          top: 10,
+                          bottom: 150,
                         ),
+                        itemCount: _groups.length,
+                        itemBuilder: (ctx, i) => _buildGroupTile(_groups[i]),
+                      ),
+                    ),
             ),
           ],
         ),
@@ -412,10 +488,10 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.1),
+                  color: themeColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: themeColor.withOpacity(0.3),
+                    color: themeColor.withValues(alpha: 0.3),
                     width: 2,
                   ),
                 ),
@@ -448,7 +524,7 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
             VeilButton(
               isDark: widget.isDark,
               label: 'CREATE GROUP',
-              gradient: [themeColor, themeColor.withOpacity(0.7)],
+              gradient: [themeColor, themeColor.withValues(alpha: 0.7)],
               onTap: _createGroup,
             ),
           ],
@@ -488,8 +564,10 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: themeColor.withOpacity(0.1),
-                  backgroundImage: group.avatarPath != null ? FileImage(File(group.avatarPath!)) : null,
+                  backgroundColor: themeColor.withValues(alpha: 0.1),
+                  backgroundImage: group.avatarPath != null
+                      ? FileImage(File(group.avatarPath!))
+                      : null,
                   child: group.avatarPath == null
                       ? Text(
                           group.name[0].toUpperCase(),
@@ -507,7 +585,7 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: themeColor.withOpacity(0.9),
+                      color: themeColor.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: widget.isDark ? Colors.black : Colors.white,
@@ -549,18 +627,21 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
                         Icon(
                           Icons.volume_off_rounded,
                           size: 16,
-                          color: widget.isDark ? Colors.white38 : Colors.black38,
+                          color: widget.isDark
+                              ? Colors.white38
+                              : Colors.black38,
                         ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     () {
-                          final lm = group.lastMessage ?? '';
-                          if (lm.isEmpty) return 'No messages yet';
-                          if (lm.startsWith('/') || lm.contains('.enc')) return '📁 Media';
-                          return lm;
-                        }(),
+                      final lm = group.lastMessage ?? '';
+                      if (lm.isEmpty) return 'No messages yet';
+                      if (lm.startsWith('/') || lm.contains('.enc'))
+                        return '📁 Media';
+                      return lm;
+                    }(),
                     style: TextStyle(
                       fontSize: 14,
                       color: VeilTheme.subText(widget.isDark),
@@ -586,7 +667,10 @@ class _GroupChatListScreenState extends State<GroupChatListScreen>
                 const SizedBox(height: 6),
                 if (hasUnread)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: themeColor,
                       borderRadius: BorderRadius.circular(12),

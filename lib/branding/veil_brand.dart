@@ -37,38 +37,46 @@ class VeilBrand {
 
   // ── Signature gradients ─────────────────────────────────────
   static const List<Color> primaryGradient = [veilIndigo, veilTeal];
-  static const List<Color> deepGradient = [veilIndigoDeep, veilIndigo, veilCyan];
+  static const List<Color> deepGradient = [
+    veilIndigoDeep,
+    veilIndigo,
+    veilCyan,
+  ];
   static const List<Color> stealthGradient = [veilVoid, veilInk, veilSlate];
 
   static LinearGradient brandSweep({
     AlignmentGeometry begin = Alignment.topLeft,
     AlignmentGeometry end = Alignment.bottomRight,
-  }) =>
-      LinearGradient(begin: begin, end: end, colors: primaryGradient);
+  }) => LinearGradient(begin: begin, end: end, colors: primaryGradient);
 
   static LinearGradient stealthSweep() => const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: stealthGradient,
-      );
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: stealthGradient,
+  );
 
   // ── Elevation / glow ────────────────────────────────────────
-  static List<BoxShadow> glow(Color color, {double blur = 24, double spread = 0}) => [
-        BoxShadow(
-          color: color.withValues(alpha: 0.35),
-          blurRadius: blur,
-          spreadRadius: spread,
-        ),
-      ];
+  static List<BoxShadow> glow(
+    Color color, {
+    double blur = 24,
+    double spread = 0,
+  }) => [
+    BoxShadow(
+      color: color.withValues(alpha: 0.35),
+      blurRadius: blur,
+      spreadRadius: spread,
+    ),
+  ];
 
   static List<BoxShadow> softShadow(bool isDark) => [
-        BoxShadow(
-          color: (isDark ? Colors.black : const Color(0xFF334155))
-              .withValues(alpha: isDark ? 0.45 : 0.10),
-          blurRadius: 22,
-          offset: const Offset(0, 8),
-        ),
-      ];
+    BoxShadow(
+      color: (isDark ? Colors.black : const Color(0xFF334155)).withValues(
+        alpha: isDark ? 0.45 : 0.10,
+      ),
+      blurRadius: 22,
+      offset: const Offset(0, 8),
+    ),
+  ];
 
   // ── Motion tokens (used by micro-animations app-wide) ───────
   static const Duration fast = Duration(milliseconds: 140);
@@ -92,39 +100,39 @@ class VeilBrand {
 
   // ── Typography scale ────────────────────────────────────────
   static TextStyle display(bool isDark) => TextStyle(
-        fontSize: 30,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.5,
-        color: isDark ? Colors.white : veilInk,
-      );
+    fontSize: 30,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.5,
+    color: isDark ? Colors.white : veilInk,
+  );
 
   static TextStyle title(bool isDark) => TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-        color: isDark ? Colors.white : veilInk,
-      );
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.2,
+    color: isDark ? Colors.white : veilInk,
+  );
 
   static TextStyle body(bool isDark) => TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: isDark ? Colors.white70 : const Color(0xFF334155),
-      );
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: isDark ? Colors.white70 : const Color(0xFF334155),
+  );
 
   static TextStyle caption(bool isDark) => TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.6,
-        color: isDark ? Colors.white38 : const Color(0xFF64748B),
-      );
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.6,
+    color: isDark ? Colors.white38 : const Color(0xFF64748B),
+  );
 
   /// Section label — uppercase, tracked out. Used across settings/group info.
   static TextStyle sectionLabel(bool isDark, Color accent) => TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.6,
-        color: accent.withValues(alpha: isDark ? 0.85 : 0.9),
-      );
+    fontSize: 11,
+    fontWeight: FontWeight.w800,
+    letterSpacing: 1.6,
+    color: accent.withValues(alpha: isDark ? 0.85 : 0.9),
+  );
 
   // ── Contrast helper ─────────────────────────────────────────
   /// Returns black or white — whichever has a better contrast ratio against

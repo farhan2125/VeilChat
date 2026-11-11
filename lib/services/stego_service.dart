@@ -1,12 +1,23 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
-import 'dart:convert';
-import 'package:image/image.dart' as img;
 import 'package:crypto/crypto.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:gal/gal.dart';
 import 'package:flutter/foundation.dart';
+import 'package:gal/gal.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+
+class StegoImageCapacity {
+  final int width;
+  final int height;
+
+  const StegoImageCapacity({required this.width, required this.height});
+
+  int get totalPixels => width * height;
+  int get maxPayloadBytes => max(0, (totalPixels - 32) ~/ 8);
+
+  bool canFitBytes(int byteLength) => (32 + byteLength * 8) <= totalPixels;
+}
 
 class StegoResult {
   final bool success;
@@ -14,13 +25,11 @@ class StegoResult {
   final File? file;
   final String? error;
 
-  StegoResult.success(this.file, {this.message})
-      : success = true,
-        error = null;
+  StegoResult.success(this.file, {this.message}) : success = true, error = null;
   StegoResult.failure(this.error)
-      : success = false,
-        message = null,
-        file = null;
+    : success = false,
+      message = null,
+      file = null;
 }
 
 class StegoService {
@@ -28,14 +37,116 @@ class StegoService {
   factory StegoService() => _instance;
   StegoService._internal();
 
-  bool canEmbed(File imageFile, String message) {
+  StegoImageCapacity? inspectBytes(Uint8List bytes) {
     try {
-      final bytes = imageFile.readAsBytesSync();
       final image = img.decodeImage(bytes);
-      if (image == null) return false;
-      return (32 + utf8.encode(message).length * 8) <= image.width * image.height;
+      if (image == null) return null;
+      return StegoImageCapacity(width: image.width, height: image.height);
     } catch (_) {
-      return false;
+      return null;
+    }
+  }
+
+  StegoImageCapacity? inspectImage(File imageFile) {
+    try {
+      return inspectBytes(imageFile.readAsBytesSync());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool canEmbed(File imageFile, String message) {
+    final cap = inspectImage(imageFile);
+    if (cap == null) return false;
+    return cap.canFitBytes(utf8.encode(message).length);
+  }
+
+  /// Pure in-memory randomized Red-channel LSB embedding.
+  /// Binary layout: [32-bit byte length][UTF-8 payload bits].
+  Uint8List? embedBytesInMemory({
+    required Uint8List imageBytes,
+    required String message,
+    required String password,
+  }) {
+    img.Image? image = img.decodeImage(imageBytes);
+    if (image == null) return null;
+
+    if (image.numChannels == 4) {
+      final n = img.Image(
+        width: image.width,
+        height: image.height,
+        numChannels: 3,
+      );
+      for (final px in image) {
+        n.setPixelRgb(px.x, px.y, px.r, px.g, px.b);
+      }
+      image = n;
+    }
+
+    final msgBytes = utf8.encode(message);
+    final payload = _intToBinary32(msgBytes.length) + _bytesToBinary(msgBytes);
+
+    if (payload.length > image.width * image.height) {
+      return null;
+    }
+
+    final indices = _shuffledIndices(image.width, image.height, password);
+    for (int i = 0; i < payload.length; i++) {
+      final pi = indices[i];
+      final x = pi % image.width;
+      final y = pi ~/ image.width;
+      final px = image.getPixel(x, y);
+      image.setPixelRgb(
+        x,
+        y,
+        (px.r.toInt() & 0xFE) | int.parse(payload[i]),
+        px.g,
+        px.b,
+      );
+    }
+
+    return Uint8List.fromList(img.encodePng(image));
+  }
+
+  /// Pure in-memory randomized Red-channel LSB extraction.
+  String? extractBytesInMemory({
+    required Uint8List imageBytes,
+    required String password,
+  }) {
+    try {
+      final image = img.decodeImage(imageBytes);
+      if (image == null) return null;
+
+      final indices = _shuffledIndices(image.width, image.height, password);
+      if (indices.length < 32) return null;
+
+      String binLen = '';
+      for (int i = 0; i < 32; i++) {
+        final pi = indices[i];
+        binLen +=
+            (image.getPixel(pi % image.width, pi ~/ image.width).r.toInt() & 1)
+                .toString();
+      }
+
+      final msgLen = int.tryParse(binLen, radix: 2);
+      if (msgLen == null ||
+          msgLen <= 0 ||
+          msgLen > 10000 ||
+          32 + msgLen * 8 > indices.length) {
+        return null;
+      }
+
+      String binMsg = '';
+      for (int i = 0; i < msgLen * 8; i++) {
+        final pi = indices[i + 32];
+        binMsg +=
+            (image.getPixel(pi % image.width, pi ~/ image.width).r.toInt() & 1)
+                .toString();
+      }
+
+      return _binaryToUtf8(binMsg);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -46,39 +157,23 @@ class StegoService {
   }) async {
     try {
       final bytes = await imageFile.readAsBytes();
-      img.Image? image = img.decodeImage(bytes);
-      if (image == null) return StegoResult.failure('Failed to decode image');
-
-      // Convert RGBA to RGB if needed
-      if (image.numChannels == 4) {
-        final n = img.Image(
-            width: image.width, height: image.height, numChannels: 3);
-        for (var px in image) n.setPixelRgb(px.x, px.y, px.r, px.g, px.b);
-        image = n;
-      }
+      final cap = inspectBytes(bytes);
+      if (cap == null) return StegoResult.failure('Failed to decode image');
 
       final msgBytes = utf8.encode(message);
-      final payload =
-          _intToBinary32(msgBytes.length) + _bytesToBinary(msgBytes);
-
-      if (payload.length > image.width * image.height) {
+      if (!cap.canFitBytes(msgBytes.length)) {
         return StegoResult.failure('Message too long for this image');
       }
 
-      final indices = _shuffledIndices(image.width, image.height, password);
-      for (int i = 0; i < payload.length; i++) {
-        final pi = indices[i];
-        final x = pi % image.width;
-        final y = pi ~/ image.width;
-        final px = image.getPixel(x, y);
-        image.setPixelRgb(
-          x, y,
-          (px.r.toInt() & 0xFE) | int.parse(payload[i]),
-          px.g, px.b,
-        );
+      final pngBytes = embedBytesInMemory(
+        imageBytes: bytes,
+        message: message,
+        password: password,
+      );
+      if (pngBytes == null) {
+        return StegoResult.failure('Failed to encode stego image');
       }
 
-      final pngBytes = img.encodePng(image);
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final filename = 'stego_$timestamp.png';
 
@@ -90,12 +185,10 @@ class StegoService {
       // Save to gallery using gal package (handles all Android versions)
       bool savedToGallery = false;
       try {
-        // Request access if needed (gal handles this internally)
         final hasAccess = await Gal.hasAccess(toAlbum: true);
         if (!hasAccess) {
           await Gal.requestAccess(toAlbum: true);
         }
-        // Save to gallery album named VeilChat
         await Gal.putImageBytes(
           Uint8List.fromList(pngBytes),
           name: filename,
@@ -118,19 +211,8 @@ class StegoService {
     }
   }
 
-  /// ✅ BUG FIX #4: Stego image gallery save failure.
-  ///
   /// Saves a raw decoded image byte stream straight into the device's public
-  /// media library. `gal` writes through MediaStore on Android (so it works
-  /// under scoped storage on API 29+ with no WRITE_EXTERNAL_STORAGE) and via
-  /// PHPhotoLibrary on iOS.
-  ///
-  /// The two historical failure modes are handled explicitly:
-  ///   1. Missing permission — we check `hasAccess` and request it before
-  ///      writing instead of letting the plugin throw.
-  ///   2. Byte-stream formatting — `Gal.putImageBytes` requires a real
-  ///      `Uint8List`; a plain `List<int>` (what `img.encodePng` returns)
-  ///      silently fails on some Android builds, so we always normalise it.
+  /// media library via `gal`.
   Future<StegoResult> saveBytesToGallery(
     List<int> bytes, {
     String? name,
@@ -146,11 +228,13 @@ class StegoService {
         final granted = await Gal.requestAccess(toAlbum: true);
         if (!granted) {
           return StegoResult.failure(
-              'Gallery permission denied. Enable Photos/Media access in Settings.');
+            'Gallery permission denied. Enable Photos/Media access in Settings.',
+          );
         }
       }
 
-      final fileName = name ?? 'veilchat_${DateTime.now().millisecondsSinceEpoch}';
+      final fileName =
+          name ?? 'veilchat_${DateTime.now().millisecondsSinceEpoch}';
 
       await Gal.putImageBytes(
         bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
@@ -165,7 +249,8 @@ class StegoService {
       switch (e.type) {
         case GalExceptionType.accessDenied:
           return StegoResult.failure(
-              'Gallery permission denied. Enable Photos/Media access in Settings.');
+            'Gallery permission denied. Enable Photos/Media access in Settings.',
+          );
         case GalExceptionType.notEnoughSpace:
           return StegoResult.failure('Not enough storage space to save image.');
         case GalExceptionType.notSupportedFormat:
@@ -194,46 +279,20 @@ class StegoService {
   Future<StegoResult> extractMessage({
     required File imageFile,
     required String password,
-
   }) async {
     try {
       final bytes = await imageFile.readAsBytes();
-      final image = img.decodeImage(bytes);
-      if (image == null) return StegoResult.failure('Failed to decode image');
-
-      final indices = _shuffledIndices(image.width, image.height, password);
-
-      // Read message length (first 32 bits)
-      String binLen = '';
-      for (int i = 0; i < 32; i++) {
-        final pi = indices[i];
-        binLen += (image
-                .getPixel(pi % image.width, pi ~/ image.width)
-                .r
-                .toInt() &
-            1)
-            .toString();
+      if (inspectBytes(bytes) == null) {
+        return StegoResult.failure('Failed to decode image');
       }
-
-      final msgLen = int.tryParse(binLen, radix: 2);
-      if (msgLen == null || msgLen <= 0 || msgLen > 10000) {
-        return StegoResult.failure(
-            'No hidden message found (wrong password?)');
+      final extracted = extractBytesInMemory(
+        imageBytes: bytes,
+        password: password,
+      );
+      if (extracted == null) {
+        return StegoResult.failure('No hidden message found (wrong password?)');
       }
-
-      // Read message bits
-      String binMsg = '';
-      for (int i = 0; i < msgLen * 8; i++) {
-        final pi = indices[i + 32];
-        binMsg += (image
-                .getPixel(pi % image.width, pi ~/ image.width)
-                .r
-                .toInt() &
-            1)
-            .toString();
-      }
-
-      return StegoResult.success(null, message: _binaryToUtf8(binMsg));
+      return StegoResult.success(null, message: extracted);
     } catch (e) {
       return StegoResult.failure('Extraction failed: $e');
     }

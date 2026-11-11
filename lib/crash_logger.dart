@@ -23,8 +23,7 @@ class CrashLogger {
 
     // Catch all other Dart errors (async, isolate etc)
     PlatformDispatcher.instance.onError = (error, stack) {
-      CrashLogger()._writeLog('DART_ERROR',
-          '$error\n\nStack trace:\n$stack');
+      CrashLogger()._writeLog('DART_ERROR', '$error\n\nStack trace:\n$stack');
       return false; // let default handler also run
     };
 
@@ -35,8 +34,7 @@ class CrashLogger {
     try {
       final file = await _getLogFile();
       final timestamp = DateTime.now().toIso8601String();
-      final entry =
-          '\n[$timestamp] [$type]\n$message\n${'─' * 60}\n';
+      final entry = '\n[$timestamp] [$type]\n$message\n${'─' * 60}\n';
 
       // Rotate log if too large
       if (await file.exists()) {
@@ -45,8 +43,7 @@ class CrashLogger {
           // Keep only last half of log
           final content = await file.readAsString();
           final half = content.substring(content.length ~/ 2);
-          await file.writeAsString(
-              '=== LOG ROTATED AT $timestamp ===\n$half');
+          await file.writeAsString('=== LOG ROTATED AT $timestamp ===\n$half');
         }
       }
 

@@ -15,7 +15,6 @@ import 'call_screen.dart';
 import 'veil_backgrounds.dart';
 import 'chat_lock_screen.dart';
 import 'veil_theme.dart';
-import 'veil_components.dart';
 import 'services/network_service.dart';
 import 'services/crypto_service.dart';
 import 'services/database_service.dart';
@@ -24,7 +23,6 @@ import 'services/file_transfer_service.dart';
 import 'services/stego_service.dart';
 import 'services/media_service.dart';
 import 'services/wallpaper_service.dart';
-
 
 class ChatDetailScreen extends StatefulWidget {
   final String contactName;
@@ -44,7 +42,8 @@ class ChatDetailScreen extends StatefulWidget {
   State<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBindingObserver {
+class _ChatDetailScreenState extends State<ChatDetailScreen>
+    with WidgetsBindingObserver {
   final NetworkService _network = NetworkService();
   final DatabaseService _db = DatabaseService();
   final CryptoService _crypto = CryptoService();
@@ -53,7 +52,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   final StegoService _stego = StegoService();
   final WallpaperService _wallpaperService = WallpaperService();
   final AudioPlayer _audioPlayer = AudioPlayer();
-
 
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -64,9 +62,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   bool _isContactTyping = false;
   Timer? _typingDebounce;
   bool _hasSentTyping = false;
-  bool _isLoadingMore = false;  // loading older messages
+  bool _isLoadingMore = false; // loading older messages
   bool _hasMoreMessages = true; // false when all loaded
-  int _messageOffset = 0;       // for pagination
+  int _messageOffset = 0; // for pagination
   static const int _pageSize = 50;
   bool _showEmojiPicker = false;
   bool _isLoading = true;
@@ -75,9 +73,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   Timer? _typingTimer;
   Timer? _debounceTimer;
 
-  bool _isRecordingVoice = false;
-  int _recordingTime = 0;
-
   final Map<String, bool> _playingAudioMessages = {};
   final Map<String, Duration> _audioDurations = {};
   final Map<String, Duration> _audioPositions = {};
@@ -85,19 +80,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   StreamSubscription? _messageSub;
   StreamSubscription? _userListSub;
   Timer? _onlineRefreshTimer;
-  StreamSubscription? _recordingTimeSub;
 
   final Map<int, String> _decryptedMediaPaths = {};
   final Set<int> _downloadingMedia = {}; // 🔥 TRACK DOWNLOADS
 
-  // Online, cache, reply, search, avatar state
+  // Online, cache, search, avatar state
   bool _isContactOnline = false;
   final Map<String, String> _decryptCache = {};
-  Map<String, dynamic>? _replyMsg;
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  String? _myAvatarPath;
   String? _contactAvatarPath;
   int _contactLastSeen = 0;
   bool _isContactBlocked = false;
@@ -106,22 +98,117 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   bool _isChatLocked = false;
   bool _isMuted = false;
 
-
   final List<String> _emojis = [
     // VeilChat signature trio pinned to the front of the palette
-    "😳","🤪","🥴",
-    "😀","😂","🤣","😍","🥰","😎","🤔","🤨","😐","😑","😶","🙄","😏",
+    "😳", "🤪", "🥴",
+    "😀",
+    "😂",
+    "🤣",
+    "😍",
+    "🥰",
+    "😎",
+    "🤔",
+    "🤨",
+    "😐",
+    "😑",
+    "😶",
+    "🙄",
+    "😏",
 
-    "😣","😥","😮","😯","😪","😫","😴","😌","😛","😜","😝","🤤","😒",
-    "😓","😔","😕","🙃","🤑","😲","☹️","🙁","😖","😞","😟","😤","😢",
-    "😭","😦","😧","😨","😩","🤯","😬","😶‍🌫️","😱","🥵","🥶","😳","🤪",
-    "😵","😡","😠","🤬","😷","🤒","🤕","🤢","🤮","🤧","😇","🥳","🥴",
+    "😣",
+    "😥",
+    "😮",
+    "😯",
+    "😪",
+    "😫",
+    "😴",
+    "😌",
+    "😛",
+    "😜",
+    "😝",
+    "🤤",
+    "😒",
+    "😓",
+    "😔",
+    "😕",
+    "🙃",
+    "🤑",
+    "😲",
+    "☹️",
+    "🙁",
+    "😖",
+    "😞",
+    "😟",
+    "😤",
+    "😢",
+    "😭",
+    "😦",
+    "😧",
+    "😨",
+    "😩",
+    "🤯",
+    "😬",
+    "😶‍🌫️",
+    "😱",
+    "🥵",
+    "🥶",
+    "😳",
+    "🤪",
+    "😵",
+    "😡",
+    "😠",
+    "🤬",
+    "😷",
+    "🤒",
+    "🤕",
+    "🤢",
+    "🤮",
+    "🤧",
+    "😇",
+    "🥳",
+    "🥴",
 
-    "🥺","🤠","🤡","🤥","🤫","🤭","🧐","🤓","😈","👿","👹","👺","💀",
-    "👻","👽","🤖","💩","😺","😸","😹","😻","😼","😽","🙀","😿","😾",
-    "❤️","🧡","💛","💚","💙","💜","🖤","💔","❣️","💕","💞","💓","💗",
-    "💖","💘","💝","👍","👎","👊","✌️","👌","✋","💪","🙏","☝️","👆",
-    "👇","👈","👉","🖕","🖐","🤘","🤟"
+    "🥺",
+    "🤠",
+    "🤡",
+    "🤥",
+    "🤫",
+    "🤭",
+    "🧐",
+    "🤓",
+    "😈",
+    "👿",
+    "👹",
+    "👺",
+    "💀",
+    "👻",
+    "👽",
+    "🤖",
+    "💩",
+    "😺",
+    "😸",
+    "😹",
+    "😻",
+    "😼",
+    "😽",
+    "🙀",
+    "😿",
+    "😾",
+    "❤️",
+    "🧡",
+    "💛",
+    "💚",
+    "💙",
+    "💜",
+    "🖤",
+    "💔",
+    "❣️",
+    "💕",
+    "💞",
+    "💓",
+    "💗",
+    "💖", "💘", "💝", "👍", "👎", "👊", "✌️", "👌", "✋", "💪", "🙏", "☝️", "👆",
+    "👇", "👈", "👉", "🖕", "🖐", "🤘", "🤟",
   ];
 
   @override
@@ -159,10 +246,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       } else if (contactData is String) {
         isOnline = contactData == 'Online';
       }
-      if (mounted) setState(() {
-        _isContactOnline = isOnline;
-        if (lastSeen > 0) _contactLastSeen = lastSeen;
-      });
+      if (mounted)
+        setState(() {
+          _isContactOnline = isOnline;
+          if (lastSeen > 0) _contactLastSeen = lastSeen;
+        });
     });
     _focusNode.addListener(_onFocusChange);
     _msgController.addListener(_onTextChanged);
@@ -187,7 +275,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
 
     _userListSub?.cancel();
     _onlineRefreshTimer?.cancel();
-    _recordingTimeSub?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -214,17 +301,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
 
     // Legacy fallback + one-time migration from the old DB-only storage.
     if (path == null) {
-      final contact =
-          await _db.getContact(widget.myUsername, widget.contactName);
+      final contact = await _db.getContact(
+        widget.myUsername,
+        widget.contactName,
+      );
       final legacyPath = contact?['chatBackground'] as String?;
       if (legacyPath != null && legacyPath.isNotEmpty) {
         if (WallpaperService.isAssetPath(legacyPath)) {
           await _wallpaperService.setChatWallpaperAsset(
-              widget.contactName, legacyPath);
+            widget.contactName,
+            legacyPath,
+          );
           path = legacyPath;
         } else if (await File(legacyPath).exists()) {
           path = await _wallpaperService.setChatWallpaperFromFile(
-              widget.contactName, legacyPath);
+            widget.contactName,
+            legacyPath,
+          );
         }
       }
     }
@@ -235,7 +328,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       VeilTheme.chatBgPath = path;
     });
   }
-
 
   Future<void> _loadMessages() async {
     // Reset pagination on full reload
@@ -299,7 +391,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     });
 
     for (var msg in deduped) {
-      if (msg['type'] != 'TEXT' && !_decryptedMediaPaths.containsKey(msg['id'])) {
+      if (msg['type'] != 'TEXT' &&
+          !_decryptedMediaPaths.containsKey(msg['id'])) {
         _decryptMediaFile(msg);
       }
     }
@@ -311,7 +404,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     final int msgId = msg['id'] ?? 0;
     final String type = msg['type'] ?? 'TEXT';
 
-    if (content.isEmpty || content.contains(' ') || content.contains('/')) return;
+    if (content.isEmpty || content.contains(' ') || content.contains('/'))
+      return;
 
     // Prevent multiple downloads
     if (_downloadingMedia.contains(msgId)) {
@@ -320,7 +414,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
     _downloadingMedia.add(msgId);
 
-    debugPrint('📥 _decryptMediaFile for msgId $msgId, serverFilename: $content');
+    debugPrint(
+      '📥 _decryptMediaFile for msgId $msgId, serverFilename: $content',
+    );
 
     try {
       final dir = await getApplicationDocumentsDirectory();
@@ -342,7 +438,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         final safeName = origFilename.replaceAll(RegExp(r'[^\w._-]'), '_');
         saveBase = safeName;
       } else {
-        ext = type == 'IMAGE' ? '.jpg' : type == 'AUDIO' ? '.m4a' : '.dat';
+        ext = type == 'IMAGE'
+            ? '.jpg'
+            : type == 'AUDIO'
+            ? '.m4a'
+            : '.dat';
         saveBase = 'recv_${msg['messageId'] ?? msgId}$ext';
       }
       final savePath = '${subDir.path}/$saveBase';
@@ -367,12 +467,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       for (int attempt = 1; attempt <= maxRetries; attempt++) {
         debugPrint('📥 Download attempt $attempt for $content');
         final tempEncPath = '$savePath.enc$attempt';
-        downloadedFile = await MediaService.downloadEncryptedFile(content, tempEncPath);
+        downloadedFile = await MediaService.downloadEncryptedFile(
+          content,
+          tempEncPath,
+        );
 
         if (downloadedFile != null && await downloadedFile.exists()) {
           int fileSize = await downloadedFile.length();
           if (fileSize < 48) {
-            debugPrint('❌ Downloaded file too small ($fileSize bytes), retrying...');
+            debugPrint(
+              '❌ Downloaded file too small ($fileSize bytes), retrying...',
+            );
             await downloadedFile.delete();
             downloadedFile = null;
             continue;
@@ -396,7 +501,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       }
 
       // Proceed with decryption
-      debugPrint('📥 Downloaded file size: ${await downloadedFile.length()} bytes');
+      debugPrint(
+        '📥 Downloaded file size: ${await downloadedFile.length()} bytes',
+      );
       String hexData = await downloadedFile.readAsString();
       hexData = hexData.trim();
       debugPrint('📥 Hex data length: ${hexData.length} characters');
@@ -404,10 +511,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       try {
         final encryptedBytes = _crypto.hexToBytes(hexData);
         debugPrint('📥 Encrypted bytes length: ${encryptedBytes.length} bytes');
-        final decryptedBase64 = await _crypto.decrypt(widget.sharedKey, encryptedBytes);
+        final decryptedBase64 = await _crypto.decrypt(
+          widget.sharedKey,
+          encryptedBytes,
+        );
 
         if (decryptedBase64 != null) {
-          debugPrint('📥 Decryption successful, base64 length: ${decryptedBase64.length}');
+          debugPrint(
+            '📥 Decryption successful, base64 length: ${decryptedBase64.length}',
+          );
           final clearBytes = base64Decode(decryptedBase64);
           debugPrint('📥 Final image bytes length: ${clearBytes.length}');
 
@@ -416,7 +528,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
           await downloadedFile.delete();
 
           final db = await _db.database;
-          await db.update('messages', {'content': finalFile.path}, where: 'id = ?', whereArgs: [msgId]);
+          await db.update(
+            'messages',
+            {'content': finalFile.path},
+            where: 'id = ?',
+            whereArgs: [msgId],
+          );
 
           if (mounted) {
             setState(() {
@@ -426,7 +543,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             });
           }
         } else {
-          debugPrint('❌ Decryption returned null – wrong key or corrupted data');
+          debugPrint(
+            '❌ Decryption returned null – wrong key or corrupted data',
+          );
           if (mounted) {
             _showError('Decryption failed. Wrong key?');
           }
@@ -444,17 +563,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
   }
 
-
-
   Future<void> _loadPinnedMessages() async {
     final pinned = await _db.getPinnedMessages(
-        widget.myUsername, widget.contactName);
+      widget.myUsername,
+      widget.contactName,
+    );
     if (mounted) setState(() => _pinnedMessages = pinned);
   }
 
-
   Future<void> _checkChatLock() async {
-    final locked = await ChatLockScreen.isLocked(widget.contactName);
+    final locked = await ChatLockScreen.isLocked(
+      widget.contactName,
+      widget.myUsername,
+    );
     if (mounted) setState(() => _isChatLocked = locked);
   }
 
@@ -464,21 +585,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
-          title: Text('Remove Lock?',
-            style: TextStyle(color: widget.isDark ? Colors.white : Colors.black)),
-          content: Text('This chat will no longer require a PIN.',
-            style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black87)),
+          backgroundColor: widget.isDark
+              ? const Color(0xFF0F172A)
+              : Colors.white,
+          title: Text(
+            'Remove Lock?',
+            style: TextStyle(
+              color: widget.isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          content: Text(
+            'This chat will no longer require a PIN.',
+            style: TextStyle(
+              color: widget.isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCEL')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('REMOVE', style: TextStyle(color: Colors.red))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('REMOVE', style: TextStyle(color: Colors.red)),
+            ),
           ],
         ),
       );
       if (confirm == true) {
-        await ChatLockScreen.setPin(widget.contactName, null);
+        await ChatLockScreen.setPin(
+          widget.contactName,
+          null,
+          widget.myUsername,
+        );
         setState(() => _isChatLocked = false);
         _showSnack('Chat lock removed', Colors.grey);
       }
@@ -522,7 +661,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     if (pin == null || !mounted) return;
 
     try {
-      await ChatLockScreen.setPin(widget.contactName, pin);
+      await ChatLockScreen.setPin(widget.contactName, pin, widget.myUsername);
       if (!mounted) return;
       setState(() => _isChatLocked = true);
       HapticFeedback.mediumImpact();
@@ -533,14 +672,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
   }
 
-
-
   Future<void> _loadAvatars() async {
-    // Load own profile avatar
-    final myProfile = await _db.getUserProfile(widget.myUsername);
-    if (myProfile != null && mounted) {
-      setState(() => _myAvatarPath = myProfile['avatarPath'] as String?);
-    }
     // Load contact data from contacts table
     final contact = await _db.getContact(widget.myUsername, widget.contactName);
     if (contact != null && mounted) {
@@ -562,14 +694,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         final msgId = data['metadata']?['messageId'] ?? data['messageId'];
         if (msgId != null) {
           _db.markMessageRead(msgId.toString());
-          if (mounted) setState(() {
-            for (var m in _messages) {
-              if (m['messageId'] == msgId.toString() && m['isMe'] == true) {
-                m['status'] = 'read';
-                m['read'] = true;
+          if (mounted)
+            setState(() {
+              for (var m in _messages) {
+                if (m['messageId'] == msgId.toString() && m['isMe'] == true) {
+                  m['status'] = 'read';
+                  m['read'] = true;
+                }
               }
-            }
-          });
+            });
         }
         return;
       }
@@ -579,13 +712,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         final msgId = data['metadata']?['messageId'] ?? data['messageId'];
         if (msgId != null) {
           _db.markMessageDelivered(msgId.toString());
-          if (mounted) setState(() {
-            for (var m in _messages) {
-              if (m['messageId'] == msgId.toString() && m['isMe'] == true) {
-                if (m['status'] != 'read') m['status'] = 'delivered';
+          if (mounted)
+            setState(() {
+              for (var m in _messages) {
+                if (m['messageId'] == msgId.toString() && m['isMe'] == true) {
+                  if (m['status'] != 'read') m['status'] = 'delivered';
+                }
               }
-            }
-          });
+            });
         }
         return;
       }
@@ -594,8 +728,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       if (type == 'DELETE_MSG' && sender == widget.contactName) {
         final delId = data['metadata']?['messageId']?.toString();
         if (delId != null && mounted) {
-          setState(() => _messages.removeWhere(
-              (m) => m['messageId']?.toString() == delId));
+          setState(
+            () => _messages.removeWhere(
+              (m) => m['messageId']?.toString() == delId,
+            ),
+          );
         }
         return;
       }
@@ -613,28 +750,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       // USER_LIST is now handled by _userListSub (userListStream)
       if (type == 'USER_LIST') return;
 
-      if (sender == widget.contactName || data['contact'] == widget.contactName) {
+      if (sender == widget.contactName ||
+          data['contact'] == widget.contactName) {
         if (type == 'TYPING') {
           _handleIncomingTyping();
         } else {
           _loadMessages();
           if (data['messageId'] != null && type != 'LOCAL_UPDATE') {
-            _network.sendDeliveredReceipt(widget.contactName, data['messageId']);
+            _network.sendDeliveredReceipt(
+              widget.contactName,
+              data['messageId'],
+            );
           }
         }
-      }
-    });
-
-    _recordingTimeSub = _sound.recordingTimeStream.listen((seconds) {
-      if (mounted && _isRecordingVoice) {
-        setState(() => _recordingTime = seconds);
       }
     });
   }
 
   Future<void> _markMessagesAsRead() async {
     await _db.markMessagesAsRead(widget.myUsername, widget.contactName);
-    final unreadMessages = _messages.where((m) => !m['isMe'] && !m['read']).toList();
+    final unreadMessages = _messages
+        .where((m) => !m['isMe'] && !m['read'])
+        .toList();
     for (var msg in unreadMessages) {
       if (msg['messageId'] != null) {
         _network.sendReadReceipt(widget.contactName, msg['messageId']);
@@ -680,7 +817,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         return;
       }
     } else {
-      debugPrint('📸 Processing media (chat_detail) – content length: ${plainText.length}');
+      debugPrint(
+        '📸 Processing media (chat_detail) – content length: ${plainText.length}',
+      );
 
       final encrypted = await _crypto.encrypt(widget.sharedKey, plainText);
       if (encrypted == null) {
@@ -688,7 +827,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         _showError("Media encryption failed!");
         return;
       }
-      debugPrint('📸 Encryption successful, encrypted length: ${encrypted.length}');
+      debugPrint(
+        '📸 Encryption successful, encrypted length: ${encrypted.length}',
+      );
 
       String hexData = _crypto.bytesToHex(encrypted);
       debugPrint('📸 Hex length: ${hexData.length}');
@@ -804,11 +945,36 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _attachmentBtn(Icons.image, 'Gallery', Colors.purple, _pickImage),
-                _attachmentBtn(Icons.camera_alt, 'Camera', Colors.blue, _pickCamera),
-                _attachmentBtn(Icons.mic, 'Voice', Colors.red, _startVoiceRecording),
-                _attachmentBtn(Icons.attach_file, 'File', Colors.orange, _pickDocument),
-                _attachmentBtn(Icons.visibility_off, 'Stego', Colors.cyan, _showStegoDialog),
+                _attachmentBtn(
+                  Icons.image,
+                  'Gallery',
+                  Colors.purple,
+                  _pickImage,
+                ),
+                _attachmentBtn(
+                  Icons.camera_alt,
+                  'Camera',
+                  Colors.blue,
+                  _pickCamera,
+                ),
+                _attachmentBtn(
+                  Icons.mic,
+                  'Voice',
+                  Colors.red,
+                  _startVoiceRecording,
+                ),
+                _attachmentBtn(
+                  Icons.attach_file,
+                  'File',
+                  Colors.orange,
+                  _pickDocument,
+                ),
+                _attachmentBtn(
+                  Icons.visibility_off,
+                  'Stego',
+                  Colors.cyan,
+                  _showStegoDialog,
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -818,7 +984,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     );
   }
 
-  Widget _attachmentBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _attachmentBtn(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -831,9 +1002,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Icon(icon, color: color, size: 28),
           ),
@@ -926,10 +1097,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     final started = await _sound.startRecording();
     if (started) {
       if (!mounted) return;
-      setState(() {
-        _isRecordingVoice = true;
-        _recordingTime = 0;
-      });
       _showRecordingOverlay();
     } else {
       _showError('Microphone permission required');
@@ -937,7 +1104,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   }
 
   void _showRecordingOverlay() {
-    int _modalSeconds = 0;
+    int modalSeconds = 0;
+    StreamSubscription? modalSub;
     showModalBottomSheet(
       context: context,
       isDismissible: false,
@@ -945,8 +1113,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setModal) {
-          _sound.recordingTimeStream.listen((s) {
-            _modalSeconds = s;
+          modalSub ??= _sound.recordingTimeStream.listen((s) {
+            modalSeconds = s;
             if (ctx2.mounted) setModal(() {});
           });
           return Container(
@@ -964,36 +1132,37 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 const Icon(Icons.mic, color: Colors.red, size: 60),
                 const SizedBox(height: 16),
                 Text(
-                  '${(_modalSeconds ~/ 60).toString().padLeft(2, '0')}:${(_modalSeconds % 60).toString().padLeft(2, '0')}',
-                  style: const TextStyle(color: Colors.white, fontSize: 36,
-                    fontWeight: FontWeight.bold),
+                  '${(modalSeconds ~/ 60).toString().padLeft(2, '0')}:${(modalSeconds % 60).toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
-                const Text('Recording...',
-                  style: TextStyle(color: Colors.white54, fontSize: 13)),
+                const Text(
+                  'Recording...',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                ),
                 const SizedBox(height: 28),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _circleBtn(Icons.close, Colors.white, () async {
                       await _sound.cancelRecording();
+                      await modalSub?.cancel();
+                      modalSub = null;
                       Navigator.pop(ctx2);
-                      if (mounted) setState(() {
-                        _isRecordingVoice = false;
-                        _recordingTime = 0;
-                      });
                     }),
                     _circleBtn(Icons.stop, Colors.red, () async {
                       final path = await _sound.stopRecording();
+                      await modalSub?.cancel();
+                      modalSub = null;
                       Navigator.pop(ctx2);
                       if (path != null) {
                         final base64 = await _sound.convertFileToBase64(path);
                         _sendSecureData(base64, 'AUDIO', localFilePath: path);
                       }
-                      if (mounted) setState(() {
-                        _isRecordingVoice = false;
-                        _recordingTime = 0;
-                      });
                     }),
                   ],
                 ),
@@ -1012,9 +1181,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         width: 60,
         height: 60,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           shape: BoxShape.circle,
-          border: Border.all(color: color.withOpacity(0.5)),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
         ),
         child: Icon(icon, color: color),
       ),
@@ -1028,7 +1197,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1042,10 +1211,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                   : [const Color(0xFFEEF2FF), const Color(0xFFF8F0FF)],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: themeColor.withOpacity(0.3), width: 1.5),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: themeColor.withOpacity(0.15),
+                color: themeColor.withValues(alpha: 0.15),
                 blurRadius: 30,
                 spreadRadius: 2,
               ),
@@ -1054,132 +1226,152 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
           padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [themeColor, VeilTheme.neonPurple],
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [themeColor, VeilTheme.neonPurple],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeColor.withValues(alpha: 0.4),
+                        blurRadius: 16,
+                      ),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(color: themeColor.withOpacity(0.4), blurRadius: 16),
+                  child: const Icon(
+                    Icons.image_search_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Hide Message in Image',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: widget.isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Your message will be invisibly embedded using LSB steganography',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: widget.isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Secret message field
+                _stegoTextField(
+                  controller: msgController,
+                  label: 'Secret message',
+                  icon: Icons.message_rounded,
+                  maxLines: 3,
+                  isDark: widget.isDark,
+                  themeColor: themeColor,
+                ),
+                const SizedBox(height: 14),
+                // Password field
+                _stegoTextField(
+                  controller: passController,
+                  label: 'Encryption password',
+                  icon: Icons.key_rounded,
+                  obscure: true,
+                  isDark: widget.isDark,
+                  themeColor: themeColor,
+                ),
+                const SizedBox(height: 24),
+                // Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(color: Colors.white24),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: widget.isDark
+                                ? Colors.white54
+                                : Colors.black45,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (msgController.text.trim().isEmpty) return;
+                          if (passController.text.trim().isEmpty) return;
+                          Navigator.pop(ctx);
+                          final image = await _imagePicker.pickImage(
+                            source: ImageSource.gallery,
+                          );
+                          if (image == null) return;
+                          final result = await _stego.embedMessage(
+                            imageFile: File(image.path),
+                            message: msgController.text,
+                            password: passController.text,
+                          );
+                          if (result.success && result.file != null) {
+                            final bytes = await result.file!.readAsBytes();
+                            final base64Str = base64Encode(bytes);
+                            _sendSecureData(
+                              base64Str,
+                              'IMAGE',
+                              isHidden: 1,
+                              hiddenKey: passController.text,
+                              localFilePath: result.file!.path,
+                            );
+                          } else {
+                            _showError(
+                              result.error ?? 'Stego embedding failed',
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: themeColor,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 4,
+                          shadowColor: themeColor.withValues(alpha: 0.4),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.send_rounded, size: 16),
+                            SizedBox(width: 6),
+                            Text(
+                              'Embed & Send',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                child: const Icon(Icons.image_search_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Hide Message in Image',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Your message will be invisibly embedded using LSB steganography',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: widget.isDark ? Colors.white38 : Colors.black38,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Secret message field
-              _stegoTextField(
-                controller: msgController,
-                label: 'Secret message',
-                icon: Icons.message_rounded,
-                maxLines: 3,
-                isDark: widget.isDark,
-                themeColor: themeColor,
-              ),
-              const SizedBox(height: 14),
-              // Password field
-              _stegoTextField(
-                controller: passController,
-                label: 'Encryption password',
-                icon: Icons.key_rounded,
-                obscure: true,
-                isDark: widget.isDark,
-                themeColor: themeColor,
-              ),
-              const SizedBox(height: 24),
-              // Buttons
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: Colors.white24),
-                      ),
-                    ),
-                    child: Text('Cancel',
-                      style: TextStyle(
-                        color: widget.isDark ? Colors.white54 : Colors.black45,
-                        fontWeight: FontWeight.w600,
-                      )),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (msgController.text.trim().isEmpty) return;
-                      if (passController.text.trim().isEmpty) return;
-                      Navigator.pop(ctx);
-                      final image = await _imagePicker.pickImage(source: ImageSource.gallery);
-                      if (image == null) return;
-                      final result = await _stego.embedMessage(
-                        imageFile: File(image.path),
-                        message: msgController.text,
-                        password: passController.text,
-                      );
-                      if (result.success && result.file != null) {
-                        final bytes = await result.file!.readAsBytes();
-                        final base64Str = base64Encode(bytes);
-                        _sendSecureData(
-                          base64Str,
-                          'IMAGE',
-                          isHidden: 1,
-                          hiddenKey: passController.text,
-                          localFilePath: result.file!.path,
-                        );
-                      } else {
-                        _showError(result.error ?? 'Stego embedding failed');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: themeColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 4,
-                      shadowColor: themeColor.withOpacity(0.4),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.send_rounded, size: 16),
-                        SizedBox(width: 6),
-                        Text('Embed & Send', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ),
-              ]),
-            ],
-          ),
+              ],
+            ),
           ), // SingleChildScrollView
         ),
       ),
@@ -1198,13 +1390,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: themeColor.withOpacity(0.2)),
+        border: Border.all(color: themeColor.withValues(alpha: 0.2)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
-        crossAxisAlignment: maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment: maxLines > 1
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           Padding(
             padding: EdgeInsets.only(top: maxLines > 1 ? 12.0 : 0),
@@ -1222,7 +1416,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               ),
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: TextStyle(color: themeColor.withOpacity(0.7), fontSize: 13),
+                labelStyle: TextStyle(
+                  color: themeColor.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
                 border: InputBorder.none,
               ),
             ),
@@ -1241,7 +1438,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1255,10 +1452,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                   : [const Color(0xFFEEF2FF), const Color(0xFFF8F0FF)],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: VeilTheme.neonPurple.withOpacity(0.4), width: 1.5),
+            border: Border.all(
+              color: VeilTheme.neonPurple.withValues(alpha: 0.4),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: VeilTheme.neonPurple.withOpacity(0.2),
+                color: VeilTheme.neonPurple.withValues(alpha: 0.2),
                 blurRadius: 30,
               ),
             ],
@@ -1276,10 +1476,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                     colors: [VeilTheme.neonPurple, themeColor],
                   ),
                   boxShadow: [
-                    BoxShadow(color: VeilTheme.neonPurple.withOpacity(0.4), blurRadius: 16),
+                    BoxShadow(
+                      color: VeilTheme.neonPurple.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                    ),
                   ],
                 ),
-                child: const Icon(Icons.lock_open_rounded, color: Colors.white, size: 26),
+                child: const Icon(
+                  Icons.lock_open_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
               ),
               const SizedBox(height: 14),
               Text(
@@ -1309,67 +1516,81 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 themeColor: VeilTheme.neonPurple,
               ),
               const SizedBox(height: 24),
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: Colors.white24),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: Colors.white24),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: widget.isDark
+                              ? Colors.white54
+                              : Colors.black45,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    child: Text('Cancel',
-                      style: TextStyle(
-                        color: widget.isDark ? Colors.white54 : Colors.black45,
-                        fontWeight: FontWeight.w600,
-                      )),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (passController.text.trim().isEmpty) return;
-                      Navigator.pop(ctx);
-                      if (!_isLikelyFilePath(path)) {
-                        _showError('Image not downloaded yet. Please wait.');
-                        return;
-                      }
-                      final result = await _stego.extractMessage(
-                        imageFile: File(path),
-                        password: passController.text.trim(),
-                      );
-                      if (mounted) {
-                        if (result.success && result.message != null) {
-                          _showExtractResult(result.message!);
-                        } else {
-                          _showError(result.error ?? 'Extraction failed — wrong password?');
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (passController.text.trim().isEmpty) return;
+                        Navigator.pop(ctx);
+                        if (!_isLikelyFilePath(path)) {
+                          _showError('Image not downloaded yet. Please wait.');
+                          return;
                         }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: VeilTheme.neonPurple,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        final result = await _stego.extractMessage(
+                          imageFile: File(path),
+                          password: passController.text.trim(),
+                        );
+                        if (mounted) {
+                          if (result.success && result.message != null) {
+                            _showExtractResult(result.message!);
+                          } else {
+                            _showError(
+                              result.error ??
+                                  'Extraction failed — wrong password?',
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: VeilTheme.neonPurple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 4,
+                        shadowColor: VeilTheme.neonPurple.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
-                      elevation: 4,
-                      shadowColor: VeilTheme.neonPurple.withOpacity(0.4),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.visibility_rounded, size: 16),
-                        SizedBox(width: 6),
-                        Text('Reveal', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.visibility_rounded, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'Reveal',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ),
         ),
@@ -1393,7 +1614,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                   : [const Color(0xFFEEF2FF), const Color(0xFFF8F0FF)],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.greenAccent.withOpacity(0.4)),
+            border: Border.all(
+              color: Colors.greenAccent.withValues(alpha: 0.4),
+            ),
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -1406,23 +1629,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                   shape: BoxShape.circle,
                   color: Colors.green,
                 ),
-                child: const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
               const SizedBox(height: 14),
-              Text('Hidden Message',
+              Text(
+                'Hidden Message',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
                   color: widget.isDark ? Colors.white : Colors.black87,
-                )),
+                ),
+              ),
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.greenAccent.withOpacity(0.08),
+                  color: Colors.greenAccent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.greenAccent.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: SelectableText(
                   message,
@@ -1434,54 +1665,67 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 ),
               ),
               const SizedBox(height: 20),
-              Row(children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: message));
-                      Navigator.pop(ctx);
-                      _showSnack('Message copied', Colors.green);
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: Colors.greenAccent.withOpacity(0.4)),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: message));
+                        Navigator.pop(ctx);
+                        _showSnack('Message copied', Colors.green);
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: Colors.greenAccent.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 15,
+                            color: Colors.greenAccent,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Copy',
+                            style: TextStyle(color: Colors.greenAccent),
+                          ),
+                        ],
                       ),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.copy_rounded, size: 15, color: Colors.greenAccent),
-                        SizedBox(width: 6),
-                        Text('Copy', style: TextStyle(color: Colors.greenAccent)),
-                      ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: themeColor,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      backgroundColor: themeColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
-
-
 
   Future<void> _togglePin(int index) async {
     final msg = _messages[index];
@@ -1517,7 +1761,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: widget.isDark ? Colors.white24 : Colors.black26,
@@ -1539,18 +1784,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 ),
                 child: contacts.isEmpty
                     ? Center(
-                        child: Text('No contacts yet',
+                        child: Text(
+                          'No contacts yet',
                           style: TextStyle(
-                            color: widget.isDark ? Colors.white38 : Colors.black38)))
+                            color: widget.isDark
+                                ? Colors.white38
+                                : Colors.black38,
+                          ),
+                        ),
+                      )
                     : ListView.builder(
                         shrinkWrap: true,
                         itemCount: contacts.length,
                         itemBuilder: (_, i) {
                           final contact = contacts[i]['contact'] as String;
-                          if (contact == widget.contactName) return const SizedBox.shrink();
+                          if (contact == widget.contactName)
+                            return const SizedBox.shrink();
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: themeColor.withOpacity(0.15),
+                              backgroundColor: themeColor.withValues(
+                                alpha: 0.15,
+                              ),
                               child: Text(
                                 contact[0].toUpperCase(),
                                 style: TextStyle(
@@ -1559,11 +1813,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                                 ),
                               ),
                             ),
-                            title: Text(contact,
+                            title: Text(
+                              contact,
                               style: TextStyle(
-                                color: widget.isDark ? Colors.white : Colors.black,
+                                color: widget.isDark
+                                    ? Colors.white
+                                    : Colors.black,
                                 fontWeight: FontWeight.w600,
-                              )),
+                              ),
+                            ),
                             onTap: () {
                               Navigator.pop(ctx);
                               _forwardMessage(msg, contact);
@@ -1604,18 +1862,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     _showSnack('Forwarded to $toContact', Colors.green);
   }
 
-  Widget _msgActionBtn(BuildContext ctx, IconData icon, String label,
-      VoidCallback onTap, {Color? color}) {
+  Widget _msgActionBtn(
+    BuildContext ctx,
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    Color? color,
+  }) {
     final c2 = color ?? VeilTheme.accentColor;
     return GestureDetector(
-      onTap: () { Navigator.pop(ctx); onTap(); },
+      onTap: () {
+        Navigator.pop(ctx);
+        onTap();
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: c2.withOpacity(0.12),
+              color: c2.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: c2, size: 22),
@@ -1649,11 +1915,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
 
     if (mounted) {
       setState(() => _messages.removeAt(index));
-      _showSnack(forEveryone ? 'Deleted for everyone' : 'Deleted for you',
-          Colors.grey);
+      _showSnack(
+        forEveryone ? 'Deleted for everyone' : 'Deleted for you',
+        Colors.grey,
+      );
     }
   }
-
 
   void _onScroll() {
     // Load older messages when scrolled to top
@@ -1750,11 +2017,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _msgActionBtn(ctx, Icons.reply_rounded, 'Reply', () {
-                  setState(() => _replyMsg = msg);
+                  Navigator.pop(ctx);
+                  final text = msg['content']?.toString() ?? '';
+                  if (text.isNotEmpty) {
+                    _msgController.text = "> $text\n${_msgController.text}";
+                    _msgController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _msgController.text.length),
+                    );
+                  }
                 }),
                 _msgActionBtn(ctx, Icons.copy_rounded, 'Copy', () {
                   if (msg['type'] == 'TEXT') {
-                    Clipboard.setData(ClipboardData(text: msg['content'] ?? ''));
+                    Clipboard.setData(
+                      ClipboardData(text: msg['content'] ?? ''),
+                    );
                     _showSnack('Copied', Colors.grey);
                   }
                 }),
@@ -1773,11 +2049,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                       ? Colors.orangeAccent
                       : VeilTheme.accentColor,
                 ),
-                _msgActionBtn(ctx, Icons.delete_outline_rounded, 'Delete for me',
-                  () => _deleteMessage(index, false), color: Colors.orangeAccent),
+                _msgActionBtn(
+                  ctx,
+                  Icons.delete_outline_rounded,
+                  'Delete for me',
+                  () => _deleteMessage(index, false),
+                  color: Colors.orangeAccent,
+                ),
                 if (isMe)
-                  _msgActionBtn(ctx, Icons.delete_forever_rounded, 'Delete for all',
-                    () => _deleteMessage(index, true), color: Colors.redAccent),
+                  _msgActionBtn(
+                    ctx,
+                    Icons.delete_forever_rounded,
+                    'Delete for all',
+                    () => _deleteMessage(index, true),
+                    color: Colors.redAccent,
+                  ),
               ],
             ),
             const Divider(height: 24),
@@ -1794,14 +2080,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: const [
-                '❤️', '😂', '😮', '😢', '👍', '🔥',
-                '🎉', '😡', '🙏', '💯', '😍', '🤔',
-                // VeilChat signature quick reactions
-                '😳', '🤪', '🥴',
-              ]
-
-                  .map((emoji) {
+              children:
+                  const [
+                    '❤️', '😂', '😮', '😢', '👍', '🔥',
+                    '🎉', '😡', '🙏', '💯', '😍', '🤔',
+                    // VeilChat signature quick reactions
+                    '😳', '🤪', '🥴',
+                  ].map((emoji) {
                     final isSelected = _messages[index]['reaction'] == emoji;
                     return GestureDetector(
                       onTap: () {
@@ -1810,7 +2095,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                           // Toggle off if already selected
                           final newVal = isSelected ? null : emoji;
                           _db.updateMessageReaction(messageId, newVal);
-                          if (mounted) setState(() => _messages[index]['reaction'] = newVal);
+                          if (mounted)
+                            setState(
+                              () => _messages[index]['reaction'] = newVal,
+                            );
                         }
                         Navigator.pop(ctx);
                       },
@@ -1819,20 +2107,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? VeilTheme.accentColor.withOpacity(0.2)
+                              ? VeilTheme.accentColor.withValues(alpha: 0.2)
                               : (widget.isDark
-                                  ? Colors.white.withOpacity(0.05)
-                                  : Colors.black.withOpacity(0.04)),
+                                    ? Colors.white.withValues(alpha: 0.05)
+                                    : Colors.black.withValues(alpha: 0.04)),
                           borderRadius: BorderRadius.circular(14),
                           border: isSelected
-                              ? Border.all(color: VeilTheme.accentColor, width: 1.5)
+                              ? Border.all(
+                                  color: VeilTheme.accentColor,
+                                  width: 1.5,
+                                )
                               : null,
                         ),
-                        child: Text(emoji, style: const TextStyle(fontSize: 28)),
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 28),
+                        ),
                       ),
                     );
-                  })
-                  .toList(),
+                  }).toList(),
             ),
             if (_messages[index]['reaction'] != null)
               TextButton(
@@ -1848,7 +2141,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 },
                 child: Text(
                   'Remove Reaction',
-                  style: TextStyle(color: Colors.red.withOpacity(0.8)),
+                  style: TextStyle(color: Colors.red.withValues(alpha: 0.8)),
                 ),
               ),
           ],
@@ -1903,7 +2196,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   /// Lightweight contact profile sheet (avatar, status, encryption badge).
   void _showContactProfile() {
     final accent = VeilTheme.accentColor;
-    final hasAvatar = _contactAvatarPath != null &&
+    final hasAvatar =
+        _contactAvatarPath != null &&
         _contactAvatarPath!.isNotEmpty &&
         File(_contactAvatarPath!).existsSync();
 
@@ -1916,8 +2210,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
           decoration: BoxDecoration(
             color: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1933,9 +2226,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               ),
               CircleAvatar(
                 radius: 42,
-                backgroundColor: accent.withOpacity(0.15),
-                backgroundImage:
-                    hasAvatar ? FileImage(File(_contactAvatarPath!)) : null,
+                backgroundColor: accent.withValues(alpha: 0.15),
+                backgroundImage: hasAvatar
+                    ? FileImage(File(_contactAvatarPath!))
+                    : null,
                 child: hasAvatar
                     ? null
                     : Text(
@@ -1963,8 +2257,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 _isContactOnline
                     ? 'Online'
                     : _contactLastSeen > 0
-                        ? 'last seen ${_formatLastSeen(_contactLastSeen)}'
-                        : 'Offline',
+                    ? 'last seen ${_formatLastSeen(_contactLastSeen)}'
+                    : 'Offline',
                 style: TextStyle(
                   fontSize: 12,
                   color: _isContactOnline
@@ -1974,18 +2268,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               ),
               const SizedBox(height: 18),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.12),
+                  color: Colors.green.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock_rounded,
-                        size: 14, color: Colors.greenAccent),
+                    Icon(
+                      Icons.lock_rounded,
+                      size: 14,
+                      color: Colors.greenAccent,
+                    ),
                     SizedBox(width: 6),
                     Flexible(
                       child: Text(
@@ -1993,7 +2294,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 11, color: Colors.greenAccent),
+                          fontSize: 11,
+                          color: Colors.greenAccent,
+                        ),
                       ),
                     ),
                   ],
@@ -2023,8 +2326,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             color: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2044,8 +2346,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               ])
                 ListTile(
                   dense: true,
-                  leading: Icon(Icons.notifications_off_rounded,
-                      size: 18, color: VeilTheme.accentColor),
+                  leading: Icon(
+                    Icons.notifications_off_rounded,
+                    size: 18,
+                    color: VeilTheme.accentColor,
+                  ),
                   title: Text(
                     opt[0] as String,
                     style: TextStyle(
@@ -2068,7 +2373,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   }
 
   Future<void> _clearChat() async {
-
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2080,7 +2384,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         ),
         content: Text(
           'This will permanently delete all messages with ${widget.contactName}.',
-          style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black87),
+          style: TextStyle(
+            color: widget.isDark ? Colors.white70 : Colors.black87,
+          ),
         ),
         actions: [
           TextButton(
@@ -2101,7 +2407,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
   }
 
-
   Future<void> _toggleBlockContact() async {
     final isBlocking = !_isContactBlocked;
     final confirm = await showDialog<bool>(
@@ -2110,20 +2415,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         backgroundColor: widget.isDark ? const Color(0xFF101A26) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          isBlocking ? 'Block ${widget.contactName}?' : 'Unblock ${widget.contactName}?',
+          isBlocking
+              ? 'Block ${widget.contactName}?'
+              : 'Unblock ${widget.contactName}?',
           style: TextStyle(color: widget.isDark ? Colors.white : Colors.black),
         ),
         content: Text(
           isBlocking
               ? 'They will not be able to send you messages or call you.'
               : 'They will be able to message and call you again.',
-          style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black87),
+          style: TextStyle(
+            color: widget.isDark ? Colors.white70 : Colors.black87,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('CANCEL',
-              style: TextStyle(color: widget.isDark ? Colors.white54 : Colors.black45)),
+            child: Text(
+              'CANCEL',
+              style: TextStyle(
+                color: widget.isDark ? Colors.white54 : Colors.black45,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -2137,7 +2450,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     );
     if (confirm == true) {
       await _db.toggleContactBlock(
-          widget.myUsername, widget.contactName, isBlocking);
+        widget.myUsername,
+        widget.contactName,
+        isBlocking,
+      );
       if (mounted) {
         setState(() => _isContactBlocked = isBlocking);
         _showSnack(
@@ -2166,7 +2482,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       // Stop any currently playing message
       if (_currentPlayingId != null && _currentPlayingId != messageId) {
         await _audioPlayer.stop();
-        if (mounted) setState(() => _playingAudioMessages[_currentPlayingId!] = false);
+        if (mounted)
+          setState(() => _playingAudioMessages[_currentPlayingId!] = false);
       }
       _currentPlayingId = messageId;
 
@@ -2182,10 +2499,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         }
       });
       _audioPlayer.onPlayerComplete.listen((_) {
-        if (mounted) setState(() {
-          _playingAudioMessages[messageId] = false;
-          _currentPlayingId = null;
-        });
+        if (mounted)
+          setState(() {
+            _playingAudioMessages[messageId] = false;
+            _currentPlayingId = null;
+          });
       });
 
       await _audioPlayer.play(DeviceFileSource(content));
@@ -2233,7 +2551,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     final newText = text.replaceRange(selection.start, selection.end, emoji);
     _msgController.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(offset: selection.start + emoji.length),
+      selection: TextSelection.collapsed(
+        offset: selection.start + emoji.length,
+      ),
     );
   }
 
@@ -2244,9 +2564,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
   }
 
   void _showSnack(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   bool _isLikelyFilePath(String path) {
@@ -2324,7 +2644,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final themeColor = VeilTheme.accentColor;
@@ -2339,7 +2658,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
-              color: (widget.isDark ? Colors.black : Colors.white).withOpacity(0.2),
+              color: (widget.isDark ? Colors.black : Colors.white).withValues(
+                alpha: 0.2,
+              ),
             ),
           ),
         ),
@@ -2358,13 +2679,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 tag: "avatar-${widget.contactName}",
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundColor: themeColor.withOpacity(0.2),
-                  backgroundImage: (_contactAvatarPath != null &&
+                  backgroundColor: themeColor.withValues(alpha: 0.2),
+                  backgroundImage:
+                      (_contactAvatarPath != null &&
                           _contactAvatarPath!.isNotEmpty &&
                           File(_contactAvatarPath!).existsSync())
                       ? FileImage(File(_contactAvatarPath!)) as ImageProvider
                       : null,
-                  child: (_contactAvatarPath == null ||
+                  child:
+                      (_contactAvatarPath == null ||
                           _contactAvatarPath!.isEmpty ||
                           !File(_contactAvatarPath!).existsSync())
                       ? Text(
@@ -2381,56 +2704,59 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.contactName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: widget.isDark ? Colors.white : Colors.black,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.contactName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: widget.isDark ? Colors.white : Colors.black,
+                      ),
                     ),
-                  ),
-                  if (_isContactTyping)
-                    _TypingDotsWidget(color: themeColor)
-                  else
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 7, height: 7,
-                          margin: const EdgeInsets.only(right: 4),
-                          decoration: BoxDecoration(
-                            color: _isContactOnline
-                                ? const Color(0xFF00FF88) : Colors.grey,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            _isContactOnline
-                                ? 'Online'
-                                : _contactLastSeen > 0
-                                    ? 'last seen ${_formatLastSeen(_contactLastSeen)}'
-                                    : 'Offline',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
+                    if (_isContactTyping)
+                      _TypingDotsWidget(color: themeColor)
+                    else
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
                               color: _isContactOnline
                                   ? const Color(0xFF00FF88)
-                                  : (widget.isDark
-                                      ? Colors.white38 : Colors.black38),
+                                  : Colors.grey,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
+                          Flexible(
+                            child: Text(
+                              _isContactOnline
+                                  ? 'Online'
+                                  : _contactLastSeen > 0
+                                  ? 'last seen ${_formatLastSeen(_contactLastSeen)}'
+                                  : 'Offline',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _isContactOnline
+                                    ? const Color(0xFF00FF88)
+                                    : (widget.isDark
+                                          ? Colors.white38
+                                          : Colors.black38),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -2467,8 +2793,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
           // ✅ FEATURE: full-featured 1:1 chat overflow menu.
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: themeColor),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             color: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
             onSelected: (val) {
               switch (val) {
@@ -2499,7 +2826,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               _menuItem('profile', Icons.person_rounded, 'View Profile'),
               _menuItem('search', Icons.search_rounded, 'Search Chat'),
               _menuItem(
-                  'wallpaper', Icons.wallpaper_rounded, 'Set Custom Wallpaper'),
+                'wallpaper',
+                Icons.wallpaper_rounded,
+                'Set Custom Wallpaper',
+              ),
               _menuItem(
                 'mute',
                 _isMuted
@@ -2513,18 +2843,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 _isChatLocked ? 'Remove Lock' : 'Lock Chat',
               ),
               const PopupMenuDivider(height: 1),
-              _menuItem('clear', Icons.delete_sweep_rounded,
-                  'Clear Chat History',
-                  color: Colors.redAccent),
+              _menuItem(
+                'clear',
+                Icons.delete_sweep_rounded,
+                'Clear Chat History',
+                color: Colors.redAccent,
+              ),
               _menuItem(
                 'block',
-                _isContactBlocked ? Icons.check_circle_rounded : Icons.block_rounded,
+                _isContactBlocked
+                    ? Icons.check_circle_rounded
+                    : Icons.block_rounded,
                 _isContactBlocked ? 'Unblock Contact' : 'Block Contact',
                 color: _isContactBlocked ? Colors.green : Colors.redAccent,
               ),
             ],
           ),
-
         ],
       ),
       body: Stack(
@@ -2550,147 +2884,201 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 // Pinned messages banner
                 if (_pinnedMessages.isNotEmpty)
                   GestureDetector(
-                    onTap: () => setState(
-                        () => _showPinnedPanel = !_showPinnedPanel),
+                    onTap: () =>
+                        setState(() => _showPinnedPanel = !_showPinnedPanel),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 4),
+                        horizontal: 15,
+                        vertical: 4,
+                      ),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.1),
+                        color: themeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: themeColor.withOpacity(0.3)),
+                          color: themeColor.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.push_pin_rounded,
-                                  color: themeColor, size: 14),
+                              Icon(
+                                Icons.push_pin_rounded,
+                                color: themeColor,
+                                size: 14,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '${_pinnedMessages.length} pinned '
                                 'message\${_pinnedMessages.length > 1 ? "s" : ""}',
                                 style: TextStyle(
-                                    color: themeColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold),
+                                  color: themeColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const Spacer(),
                               Icon(
                                 _showPinnedPanel
                                     ? Icons.keyboard_arrow_up
                                     : Icons.keyboard_arrow_down,
-                                color: themeColor, size: 16),
+                                color: themeColor,
+                                size: 16,
+                              ),
                             ],
                           ),
-                          if (_showPinnedPanel) ...
-                            _pinnedMessages.map((m) => Padding(
-                              padding: const EdgeInsets.only(top: 6, left: 8),
-                              child: Text(
-                                m['content']?.toString() ?? '',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: widget.isDark
-                                        ? Colors.white70
-                                        : Colors.black54),
-                              ),
-                            )).toList(),
+                          if (_showPinnedPanel)
+                            ..._pinnedMessages
+                                .map(
+                                  (m) => Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: 6,
+                                      left: 8,
+                                    ),
+                                    child: Text(
+                                      m['content']?.toString() ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: widget.isDark
+                                            ? Colors.white70
+                                            : Colors.black54,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                         ],
                       ),
                     ),
                   ),
                 Expanded(
                   child: _isLoading
-                      ? Center(child: CircularProgressIndicator(color: themeColor))
+                      ? Center(
+                          child: CircularProgressIndicator(color: themeColor),
+                        )
                       : _messages.isEmpty
-                          ? _buildEmptyState()
-                          : RefreshIndicator(
-                              color: themeColor,
-                              onRefresh: () async => _loadMessages(),
-                              child: ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.fromLTRB(15, 60, 15, 20),
-                              itemCount: (_isSearching && _searchQuery.isNotEmpty
-                                  ? _messages.where((m) => (m['content'] ?? '').toString().toLowerCase().contains(_searchQuery)).length
-                                  : _messages.length) + (_isLoadingMore ? 1 : 0),
-                              itemBuilder: (ctx, i) {
-                                // Spinner at top when loading older
-                                if (_isLoadingMore && i == 0) {
-                                  return Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: Center(child: SizedBox(
-                                      width: 20, height: 20,
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                          color: themeColor,
+                          onRefresh: () async => _loadMessages(),
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(15, 60, 15, 20),
+                            itemCount:
+                                (_isSearching && _searchQuery.isNotEmpty
+                                    ? _messages
+                                          .where(
+                                            (m) => (m['content'] ?? '')
+                                                .toString()
+                                                .toLowerCase()
+                                                .contains(_searchQuery),
+                                          )
+                                          .length
+                                    : _messages.length) +
+                                (_isLoadingMore ? 1 : 0),
+                            itemBuilder: (ctx, i) {
+                              // Spinner at top when loading older
+                              if (_isLoadingMore && i == 0) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
                                       child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: themeColor))),
-                                  );
-                                }
-                                final idx = _isLoadingMore ? i - 1 : i;
-                                final msgs = _isSearching && _searchQuery.isNotEmpty
-                                    ? _messages.where((m) => (m['content'] ?? '').toString().toLowerCase().contains(_searchQuery)).toList()
-                                    : _messages;
-                                if (idx < 0 || idx >= msgs.length) return const SizedBox.shrink();
-                                // ✅ SEMANTICS FIX: a unique, stable key per
-                                // message keeps Flutter from reusing elements
-                                // across rebuilds (the cause of the duplicate
-                                // key / semantics-ancestor assertions).
-                                final m = msgs[idx];
-                                return KeyedSubtree(
-                                  key: ValueKey(
-                                    'msg_${m['messageId'] ?? m['id'] ?? m['time']}',
+                                        strokeWidth: 2,
+                                        color: themeColor,
+                                      ),
+                                    ),
                                   ),
-                                  child: _buildBubble(m, idx),
                                 );
-
-                              },
-                            )),
+                              }
+                              final idx = _isLoadingMore ? i - 1 : i;
+                              final msgs =
+                                  _isSearching && _searchQuery.isNotEmpty
+                                  ? _messages
+                                        .where(
+                                          (m) => (m['content'] ?? '')
+                                              .toString()
+                                              .toLowerCase()
+                                              .contains(_searchQuery),
+                                        )
+                                        .toList()
+                                  : _messages;
+                              if (idx < 0 || idx >= msgs.length)
+                                return const SizedBox.shrink();
+                              // ✅ SEMANTICS FIX: a unique, stable key per
+                              // message keeps Flutter from reusing elements
+                              // across rebuilds (the cause of the duplicate
+                              // key / semantics-ancestor assertions).
+                              final m = msgs[idx];
+                              return KeyedSubtree(
+                                key: ValueKey(
+                                  'msg_${m['messageId'] ?? m['id'] ?? m['time']}',
+                                ),
+                                child: _buildBubble(m, idx),
+                              );
+                            },
+                          ),
+                        ),
                 ),
                 // Blocked banner - shows instead of input when blocked
                 if (_isContactBlocked)
                   Container(
                     margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: Colors.red.withOpacity(0.3)),
+                        color: Colors.red.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.block_rounded,
-                            color: Colors.red, size: 18),
+                        const Icon(
+                          Icons.block_rounded,
+                          color: Colors.red,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'You blocked ${widget.contactName}',
                           style: const TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w600),
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: _toggleBlockContact,
-                          child: const Text('Unblock',
+                          child: const Text(
+                            'Unblock',
                             style: TextStyle(
                               color: Colors.blue,
                               decoration: TextDecoration.underline,
-                              fontWeight: FontWeight.bold)),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   )
                 else
                   _buildInputArea(themeColor),
-                if (!_isContactBlocked && _showEmojiPicker)
-                  _buildEmojiPicker(),
+                if (!_isContactBlocked && _showEmojiPicker) _buildEmojiPicker(),
               ],
             ),
           ),
@@ -2698,7 +3086,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       ),
     );
   }
-
 
   String _formatLastSeen(int ms) {
     if (ms <= 0) return 'recently';
@@ -2717,8 +3104,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       return '$days days ago';
     }
     final dt = DateTime.fromMillisecondsSinceEpoch(ms);
-    final d = dt.day.toString().padLeft(2,'0');
-    final mo = dt.month.toString().padLeft(2,'0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final mo = dt.month.toString().padLeft(2, '0');
     return '$d/$mo/${dt.year}';
   }
 
@@ -2731,7 +3118,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+              color: widget.isDark
+                  ? Colors.white10
+                  : Colors.black.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -2801,10 +3190,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               ),
               decoration: BoxDecoration(
                 color: isMe
-                    ? themeColor.withOpacity(0.25)
+                    ? themeColor.withValues(alpha: 0.25)
                     : (widget.isDark
-                        ? Colors.white.withOpacity(0.08)
-                        : Colors.black.withOpacity(0.05)),
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.05)),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
@@ -2813,13 +3202,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 ),
                 border: Border.all(
                   color: isMe
-                      ? themeColor.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.1),
+                      ? themeColor.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
               child: Column(
-                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isMe
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   if (isImage)
                     ClipRRect(
@@ -2845,19 +3236,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                       onTap: () => _showExtractDialog(msg),
                       child: Container(
                         margin: const EdgeInsets.only(top: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              themeColor.withOpacity(0.18),
-                              VeilTheme.neonPurple.withOpacity(0.14),
+                              themeColor.withValues(alpha: 0.18),
+                              VeilTheme.neonPurple.withValues(alpha: 0.14),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: themeColor.withOpacity(0.5), width: 1),
+                          border: Border.all(
+                            color: themeColor.withValues(alpha: 0.5),
+                            width: 1,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: themeColor.withOpacity(0.2),
+                              color: themeColor.withValues(alpha: 0.2),
                               blurRadius: 8,
                             ),
                           ],
@@ -2865,7 +3262,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.lock_open_rounded, size: 13, color: themeColor),
+                            Icon(
+                              Icons.lock_open_rounded,
+                              size: 13,
+                              color: themeColor,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               'Tap to reveal hidden message',
@@ -2887,7 +3288,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                       Text(
                         DateFormat('hh:mm a').format(dt),
                         style: TextStyle(
-                          color: widget.isDark ? Colors.white38 : Colors.black38,
+                          color: widget.isDark
+                              ? Colors.white38
+                              : Colors.black38,
                           fontSize: 10,
                         ),
                       ),
@@ -2897,14 +3300,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                           status == 'read'
                               ? Icons.done_all
                               : status == 'delivered'
-                                  ? Icons.done_all
-                                  : Icons.done,
+                              ? Icons.done_all
+                              : Icons.done,
                           size: 12,
                           color: status == 'read'
                               ? Colors.blue
                               : (status == 'delivered'
-                                  ? Colors.green
-                                  : (widget.isDark ? Colors.white38 : Colors.black45)),
+                                    ? Colors.green
+                                    : (widget.isDark
+                                          ? Colors.white38
+                                          : Colors.black45)),
                         ),
                     ],
                   ),
@@ -2918,20 +3323,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 left: !isMe ? 8 : null,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 3),
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: widget.isDark
                         ? const Color(0xFF1E293B)
                         : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: widget.isDark
-                          ? Colors.white12
-                          : Colors.black12,
+                      color: widget.isDark ? Colors.white12 : Colors.black12,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -2986,10 +3391,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                         _viewerActionBtn(
                           icon: Icons.share_rounded,
                           label: 'Share',
-                          onTap: () => Share.shareXFiles(
-                            [XFile(path)],
-                            text: 'Shared from VeilChat',
-                          ),
+                          onTap: () => Share.shareXFiles([
+                            XFile(path),
+                          ], text: 'Shared from VeilChat'),
                         ),
                       ],
                     ),
@@ -3035,7 +3439,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               onPressed: () {
                 _decryptMediaFile(_messages[index]);
               },
-              child: const Text('Retry', style: TextStyle(color: Colors.orange)),
+              child: const Text(
+                'Retry',
+                style: TextStyle(color: Colors.orange),
+              ),
             ),
           ],
         ),
@@ -3050,7 +3457,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     required VoidCallback onTap,
   }) {
     return Material(
-      color: Colors.black.withOpacity(0.55),
+      color: Colors.black.withValues(alpha: 0.55),
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -3086,7 +3493,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     );
   }
 
-
   Widget _buildAudioContent(String content, String id, int index) {
     final isPlaying = _playingAudioMessages[id] ?? false;
     final duration = _audioDurations[id] ?? Duration.zero;
@@ -3097,7 +3503,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
         width: 250,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+          color: widget.isDark
+              ? Colors.white10
+              : Colors.black.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -3108,7 +3516,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               onPressed: () {
                 _decryptMediaFile(_messages[index]);
               },
-              child: const Text('Retry Download', style: TextStyle(color: Colors.orange)),
+              child: const Text(
+                'Retry Download',
+                style: TextStyle(color: Colors.orange),
+              ),
             ),
           ],
         ),
@@ -3119,7 +3530,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       width: 250,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        color: widget.isDark
+            ? Colors.white10
+            : Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -3132,7 +3545,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: widget.isDark ? VeilTheme.accentColor : VeilTheme.holoPink,
+                    color: widget.isDark
+                        ? VeilTheme.accentColor
+                        : VeilTheme.holoPink,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -3168,15 +3583,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             ],
           ),
           const SizedBox(height: 8),
-          LayoutBuilder(builder: (_, __) {
-            final maxV = duration.inSeconds.toDouble().clamp(1.0, double.infinity);
-            final curV = position.inSeconds.toDouble().clamp(0.0, maxV);
-            return Slider(
-              value: curV, min: 0, max: maxV,
-              onChanged: (_) {},
-              activeColor: widget.isDark ? VeilTheme.accentColor : VeilTheme.holoPink,
-            );
-          }),
+          LayoutBuilder(
+            builder: (_, __) {
+              final maxV = duration.inSeconds.toDouble().clamp(
+                1.0,
+                double.infinity,
+              );
+              final curV = position.inSeconds.toDouble().clamp(0.0, maxV);
+              return Slider(
+                value: curV,
+                min: 0,
+                max: maxV,
+                onChanged: (_) {},
+                activeColor: widget.isDark
+                    ? VeilTheme.accentColor
+                    : VeilTheme.holoPink,
+              );
+            },
+          ),
         ],
       ),
     );
@@ -3184,10 +3608,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
 
   Widget _buildFileContent(Map<String, dynamic> msg, String path, int index) {
     final meta = msg['metadata'];
-    final metadata = (meta is Map) ? Map<String, dynamic>.from(meta) : <String, dynamic>{};
+    final metadata = (meta is Map)
+        ? Map<String, dynamic>.from(meta)
+        : <String, dynamic>{};
     // ✅ FIX: safely get filename from metadata regardless of key type
     final metaSafe = <String, dynamic>{};
-    if (metadata is Map) metadata.forEach((k, v) => metaSafe[k.toString()] = v);
+    metadata.forEach((k, v) => metaSafe[k.toString()] = v);
     String filename = metaSafe['filename']?.toString() ?? '';
     if (filename.isEmpty && path.contains('/')) {
       filename = path.split('/').last;
@@ -3196,18 +3622,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     // Get real file size
     int size = (metadata['size'] as num?)?.toInt() ?? 0;
     if (size == 0 && _isLikelyFilePath(path)) {
-      try { size = File(path).lengthSync(); } catch (_) {}
+      try {
+        size = File(path).lengthSync();
+      } catch (_) {}
     }
     final sizeStr = size > 1024 * 1024
         ? '${(size / (1024 * 1024)).toStringAsFixed(1)} MB'
-        : size > 0 ? '${(size / 1024).toStringAsFixed(1)} KB' : 'Unknown size';
+        : size > 0
+        ? '${(size / 1024).toStringAsFixed(1)} KB'
+        : 'Unknown size';
 
     if (!_isLikelyFilePath(path)) {
       return Container(
         width: 250,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+          color: widget.isDark
+              ? Colors.white10
+              : Colors.black.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -3218,7 +3650,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
               onPressed: () {
                 _decryptMediaFile(msg);
               },
-              child: const Text('Retry Download', style: TextStyle(color: Colors.orange)),
+              child: const Text(
+                'Retry Download',
+                style: TextStyle(color: Colors.orange),
+              ),
             ),
           ],
         ),
@@ -3226,7 +3661,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     }
 
     // Determine file type icon and color
-    final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : '';
+    final ext = filename.contains('.')
+        ? filename.split('.').last.toLowerCase()
+        : '';
     final Color fileColor;
     final IconData fileIcon;
     if (['pdf'].contains(ext)) {
@@ -3256,11 +3693,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
       constraints: const BoxConstraints(maxWidth: 280),
       decoration: BoxDecoration(
         color: widget.isDark
-            ? Colors.white.withOpacity(0.07)
-            : Colors.black.withOpacity(0.04),
+            ? Colors.white.withValues(alpha: 0.07)
+            : Colors.black.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: fileColor.withOpacity(0.25), width: 1),
+        border: Border.all(color: fileColor.withValues(alpha: 0.25), width: 1),
       ),
       child: Material(
         color: Colors.transparent,
@@ -3279,86 +3715,137 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                 builder: (_) => Dialog(
                   backgroundColor: Colors.black87,
                   insetPadding: EdgeInsets.zero,
-                  child: Stack(children: [
-                    InteractiveViewer(
-                      panEnabled: true, minScale: 0.5, maxScale: 4.0,
-                      child: Image.file(file, fit: BoxFit.contain)),
-                    Positioned(top: 8, right: 8,
-                      child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.pop(context))),
-                  ]),
+                  child: Stack(
+                    children: [
+                      InteractiveViewer(
+                        panEnabled: true,
+                        minScale: 0.5,
+                        maxScale: 4.0,
+                        child: Image.file(file, fit: BoxFit.contain),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             } else {
               final result = await OpenFile.open(path);
               if (result.type != ResultType.done) {
-                await Share.shareXFiles([XFile(path)], text: 'Shared from VeilChat');
+                await Share.shareXFiles([
+                  XFile(path),
+                ], text: 'Shared from VeilChat');
               }
             }
           },
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(children: [
-              // File type icon with colored background
-              Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  color: fileColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: fileColor.withOpacity(0.3))),
-                child: Icon(fileIcon, color: fileColor, size: 22),
-              ),
-              const SizedBox(width: 12),
-              // Filename and size
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(filename,
-                    style: TextStyle(
-                      color: widget.isDark ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.w600, fontSize: 13),
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 3),
-                  Row(children: [
-                    Text(sizeStr,
-                      style: TextStyle(
-                        color: widget.isDark ? Colors.white38 : Colors.black38,
-                        fontSize: 11)),
-                    const SizedBox(width: 6),
-                    Container(width: 3, height: 3,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: widget.isDark ? Colors.white24 : Colors.black26)),
-                    const SizedBox(width: 6),
-                    Text(ext.toUpperCase(),
-                      style: TextStyle(
-                        color: fileColor, fontSize: 10,
-                        fontWeight: FontWeight.bold)),
-                  ]),
-                ],
-              )),
-              // Action buttons
-              Column(mainAxisSize: MainAxisSize.min, children: [
-                GestureDetector(
-                  onTap: () async {
-                    final file = File(path);
-                    if (await file.exists()) {
-                      await Share.shareXFiles([XFile(path)], text: 'Shared from VeilChat');
-                    }
-                  },
-                  child: Container(
-                    width: 32, height: 32,
-                    decoration: BoxDecoration(
-                      color: (widget.isDark ? Colors.white : Colors.black).withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(8)),
-                    child: Icon(Icons.share_rounded,
-                      size: 15,
-                      color: widget.isDark ? Colors.white54 : Colors.black45),
+            child: Row(
+              children: [
+                // File type icon with colored background
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: fileColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: fileColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Icon(fileIcon, color: fileColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                // Filename and size
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        filename,
+                        style: TextStyle(
+                          color: widget.isDark ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            sizeStr,
+                            style: TextStyle(
+                              color: widget.isDark
+                                  ? Colors.white38
+                                  : Colors.black38,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 3,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.isDark
+                                  ? Colors.white24
+                                  : Colors.black26,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            ext.toUpperCase(),
+                            style: TextStyle(
+                              color: fileColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ]),
-            ]),
+                // Action buttons
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () async {
+                        final file = File(path);
+                        if (await file.exists()) {
+                          await Share.shareXFiles([
+                            XFile(path),
+                          ], text: 'Shared from VeilChat');
+                        }
+                      },
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: (widget.isDark ? Colors.white : Colors.black)
+                              .withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.share_rounded,
+                          size: 15,
+                          color: widget.isDark
+                              ? Colors.white54
+                              : Colors.black45,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -3372,8 +3859,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
 
   Widget _buildInputArea(Color themeColor) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(15, 0, 15,
-          MediaQuery.of(context).viewInsets.bottom > 0 ? 8 : 12),
+      padding: EdgeInsets.fromLTRB(
+        15,
+        0,
+        15,
+        MediaQuery.of(context).viewInsets.bottom > 0 ? 8 : 12,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
@@ -3384,12 +3875,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
             child: Row(
               children: [
                 IconButton(
-                  icon: Icon(Icons.add_circle_outline_rounded, color: themeColor),
+                  icon: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: themeColor,
+                  ),
                   onPressed: _showAttachmentMenu,
                 ),
                 IconButton(
                   icon: Icon(
-                    _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined,
+                    _showEmojiPicker
+                        ? Icons.keyboard
+                        : Icons.emoji_emotions_outlined,
                     color: themeColor,
                   ),
                   onPressed: _toggleEmojiPicker,
@@ -3410,7 +3906,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                         color: widget.isDark ? Colors.white30 : Colors.black38,
                       ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                      ),
                     ),
                     onSubmitted: (value) {
                       if (value.trim().isNotEmpty) _sendMessage();
@@ -3429,14 +3927,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: themeColor.withOpacity(0.4),
+                        color: themeColor.withValues(alpha: 0.4),
                         blurRadius: 8,
                       ),
                     ],
                   ),
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     onPressed: _sendMessage,
                   ),
                 ),
@@ -3452,7 +3954,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
     return Container(
       height: 250,
       decoration: BoxDecoration(
-        color: widget.isDark ? const Color(0xFF050A15) : const Color(0xFFF2F6FF),
+        color: widget.isDark
+            ? const Color(0xFF050A15)
+            : const Color(0xFFF2F6FF),
         border: Border(
           top: BorderSide(
             color: widget.isDark ? Colors.white12 : Colors.black12,
@@ -3497,10 +4001,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> with WidgetsBinding
                     borderRadius: BorderRadius.circular(8),
                     color: widget.isDark
                         ? Colors.white10
-                        : Colors.black.withOpacity(0.03),
+                        : Colors.black.withValues(alpha: 0.03),
                   ),
                   child: Center(
-                    child: Text(_emojis[i], style: const TextStyle(fontSize: 22)),
+                    child: Text(
+                      _emojis[i],
+                      style: const TextStyle(fontSize: 22),
+                    ),
                   ),
                 ),
               ),
@@ -3531,7 +4038,8 @@ class DynamicChatPainter extends CustomPainter {
     final rect = Offset.zero & size;
     canvas.drawRect(
       rect,
-      Paint()..color = isDark ? const Color(0xFF02050A) : const Color(0xFFF8FAFC),
+      Paint()
+        ..color = isDark ? const Color(0xFF02050A) : const Color(0xFFF8FAFC),
     );
 
     switch (style) {
@@ -3559,8 +4067,7 @@ class DynamicChatPainter extends CustomPainter {
   void _drawCosmos(Canvas canvas, Size size, Random rng) {
     for (int i = 0; i < 6; i++) {
       final orbPaint = Paint()
-        ..color = themeColor.withOpacity(isDark ? 0.05 : 0.08)
-        ;
+        ..color = themeColor.withValues(alpha: isDark ? 0.05 : 0.08);
       canvas.drawCircle(
         Offset(rng.nextDouble() * size.width, rng.nextDouble() * size.height),
         100 + rng.nextDouble() * 200,
@@ -3571,7 +4078,7 @@ class DynamicChatPainter extends CustomPainter {
 
   void _drawMesh(Canvas canvas, Size size, Random rng) {
     final p = Paint()
-      ..color = themeColor.withOpacity(0.08)
+      ..color = themeColor.withValues(alpha: 0.08)
       ..strokeWidth = 1.0;
     for (int i = 0; i < 20; i++) {
       canvas.drawLine(
@@ -3600,17 +4107,16 @@ class DynamicChatPainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = themeColor.withOpacity(0.12)
+          ..color = themeColor.withValues(alpha: 0.12)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 180
-          ,
+          ..strokeWidth = 180,
       );
     }
   }
 
   void _drawCircuits(Canvas canvas, Size size, Random rng) {
     final p = Paint()
-      ..color = themeColor.withOpacity(0.1)
+      ..color = themeColor.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     for (int i = 0; i < 12; i++) {
@@ -3624,7 +4130,6 @@ class DynamicChatPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
 
 /// ✅ CRASH FIX — self-contained two-step PIN setup dialog.
 ///
@@ -3772,7 +4277,7 @@ class _SetPinDialogState extends State<_SetPinDialog> {
                 ),
                 errorText: _error,
                 enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: accent.withOpacity(0.5)),
+                  borderSide: BorderSide(color: accent.withValues(alpha: 0.5)),
                 ),
                 focusedBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: accent),
@@ -3808,9 +4313,10 @@ class _SetPinDialogState extends State<_SetPinDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: accent,
             foregroundColor: Colors.black,
-            disabledBackgroundColor: accent.withOpacity(0.25),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            disabledBackgroundColor: accent.withValues(alpha: 0.25),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: Text(
             _step == 1 ? 'NEXT' : 'CONFIRM',
@@ -3862,16 +4368,14 @@ class _TypingDotsWidgetState extends State<_TypingDotsWidget>
             builder: (_, __) {
               // Each dot has a phase offset
               final phase = (_ctrl.value * 3 - i).clamp(0.0, 1.0);
-              final bounce = phase < 0.5
-                  ? phase * 2
-                  : (1.0 - phase) * 2;
+              final bounce = phase < 0.5 ? phase * 2 : (1.0 - phase) * 2;
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 width: 5,
                 height: 5,
                 transform: Matrix4.translationValues(0, -bounce * 5, 0),
                 decoration: BoxDecoration(
-                  color: widget.color.withOpacity(0.7 + bounce * 0.3),
+                  color: widget.color.withValues(alpha: 0.7 + bounce * 0.3),
                   shape: BoxShape.circle,
                 ),
               );

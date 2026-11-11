@@ -31,7 +31,6 @@ class WallpaperService {
   /// Namespaced key so a group id can never collide with a contact name.
   String groupKey(String groupId) => '$_groupKeyPrefix$groupId';
 
-
   /// Returns the saved wallpaper path for [contact], or null when there is
   /// none / the underlying file no longer exists.
   ///
@@ -130,8 +129,10 @@ class WallpaperService {
   Future<String?> getGroupWallpaper(String groupId) =>
       getChatWallpaper(groupKey(groupId));
 
-  Future<String?> setGroupWallpaperFromFile(String groupId, String sourcePath) =>
-      setChatWallpaperFromFile(groupKey(groupId), sourcePath);
+  Future<String?> setGroupWallpaperFromFile(
+    String groupId,
+    String sourcePath,
+  ) => setChatWallpaperFromFile(groupKey(groupId), sourcePath);
 
   Future<bool> setGroupWallpaperAsset(String groupId, String assetPath) =>
       setChatWallpaperAsset(groupKey(groupId), assetPath);
@@ -176,7 +177,6 @@ class WallpaperService {
 
   /// True when [path] points at a bundled Flutter asset rather than a file.
   static bool isAssetPath(String path) => path.startsWith('assets/');
-
 
   // ── internals ──────────────────────────────────────────────────────────
 

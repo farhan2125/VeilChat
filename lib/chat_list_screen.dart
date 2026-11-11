@@ -7,7 +7,6 @@ import 'veil_theme.dart';
 import 'veil_components.dart';
 import 'services/network_service.dart';
 import 'services/database_service.dart';
-import 'services/crypto_service.dart';
 import 'chat_detail_screen.dart';
 import 'chat_lock_screen.dart';
 import 'contact_list_screen.dart';
@@ -79,7 +78,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final unreadCounts = <String, int>{};
     for (var msg in lastMessages) {
       final contact = msg['contact'] as String;
-      unreadCounts[contact] = await _db.getUnreadCount(widget.username, contact);
+      unreadCounts[contact] = await _db.getUnreadCount(
+        widget.username,
+        contact,
+      );
     }
 
     final List<Map<String, dynamic>> list = [];
@@ -94,9 +96,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
       // Decryption only happens when opening the actual chat
       String displayText;
       switch (type) {
-        case 'IMAGE': displayText = '📷 Photo'; break;
-        case 'AUDIO': displayText = '🎤 Voice message'; break;
-        case 'FILE':  displayText = '📁 File'; break;
+        case 'IMAGE':
+          displayText = '📷 Photo';
+          break;
+        case 'AUDIO':
+          displayText = '🎤 Voice message';
+          break;
+        case 'FILE':
+          displayText = '📁 File';
+          break;
         default:
           // Show lock icon for encrypted text - fast, no crypto work
           displayText = lastContent.isNotEmpty ? '🔒 Message' : '';
@@ -138,8 +146,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
         // Handle both old format (String) and new format (Map with status/lastSeen)
         final statusMap = <String, String>{};
         rawUsers.forEach((k, v) {
-          if (v is String) statusMap[k.toString()] = v;
-          else if (v is Map) statusMap[k.toString()] = v['status']?.toString() ?? 'Offline';
+          if (v is String)
+            statusMap[k.toString()] = v;
+          else if (v is Map)
+            statusMap[k.toString()] = v['status']?.toString() ?? 'Offline';
         });
         if (mounted) {
           setState(() {
@@ -154,7 +164,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     _messageSub = _network.messageStream.listen((data) {
       if (data['type'] != 'TYPING' && data['sender'] != null) {
-        debugPrint('📨 New message from ${data['sender']}, reloading chat list');
+        debugPrint(
+          '📨 New message from ${data['sender']}, reloading chat list',
+        );
         _loadChatList();
       }
     });
@@ -169,20 +181,30 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<Map<String, dynamic>> get _filteredChatList {
     final query = _searchController.text.toLowerCase().trim();
     if (query.isEmpty) return _chatList;
-    return _chatList.where((chat) => chat['contact'].toLowerCase().contains(query)).toList();
+    return _chatList
+        .where((chat) => chat['contact'].toLowerCase().contains(query))
+        .toList();
   }
-
 
   Widget _buildListTick(String status) {
     if (status == 'read') {
-      return Icon(Icons.done_all_rounded, size: 14,
-        color: widget.isDark ? const Color(0xFF00CFFF) : Colors.blue);
+      return Icon(
+        Icons.done_all_rounded,
+        size: 14,
+        color: widget.isDark ? const Color(0xFF00CFFF) : Colors.blue,
+      );
     } else if (status == 'delivered') {
-      return Icon(Icons.done_all_rounded, size: 14,
-        color: widget.isDark ? Colors.white38 : Colors.black38);
+      return Icon(
+        Icons.done_all_rounded,
+        size: 14,
+        color: widget.isDark ? Colors.white38 : Colors.black38,
+      );
     }
-    return Icon(Icons.done_rounded, size: 14,
-      color: widget.isDark ? Colors.white24 : Colors.black26);
+    return Icon(
+      Icons.done_rounded,
+      size: 14,
+      color: widget.isDark ? Colors.white24 : Colors.black26,
+    );
   }
 
   @override
@@ -206,16 +228,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: themeColor.withOpacity(0.3),
+                            color: themeColor.withValues(alpha: 0.3),
                             blurRadius: 15,
                           ),
                         ],
                         border: Border.all(
-                          color: themeColor.withOpacity(0.5),
+                          color: themeColor.withValues(alpha: 0.5),
                           width: 1.5,
                         ),
                       ),
-                      child: Icon(Icons.shield_moon_rounded, color: themeColor, size: 24),
+                      child: Icon(
+                        Icons.shield_moon_rounded,
+                        color: themeColor,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     ShaderMask(
@@ -255,13 +281,17 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         padding: const EdgeInsets.all(8),
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                          color: themeColor.withOpacity(0.12),
+                          color: themeColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: themeColor.withOpacity(0.3)),
+                            color: themeColor.withValues(alpha: 0.3),
+                          ),
                         ),
-                        child: Icon(Icons.people_alt_rounded,
-                            color: themeColor, size: 22),
+                        child: Icon(
+                          Icons.people_alt_rounded,
+                          color: themeColor,
+                          size: 22,
+                        ),
                       ),
                     ),
                     Switch(
@@ -283,16 +313,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
             decoration: VeilTheme.ultraGlass(isDark: widget.isDark, radius: 15),
             child: Row(
               children: [
-                Icon(Icons.search, color: widget.isDark ? Colors.white54 : Colors.black54),
+                Icon(
+                  Icons.search,
+                  color: widget.isDark ? Colors.white54 : Colors.black54,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
                     onChanged: _applySearch,
-                    style: TextStyle(color: widget.isDark ? Colors.white : Colors.black),
+                    style: TextStyle(
+                      color: widget.isDark ? Colors.white : Colors.black,
+                    ),
                     decoration: InputDecoration(
                       hintText: "Search contacts...",
-                      hintStyle: TextStyle(color: widget.isDark ? Colors.white54 : Colors.black54),
+                      hintStyle: TextStyle(
+                        color: widget.isDark ? Colors.white54 : Colors.black54,
+                      ),
                       border: InputBorder.none,
                     ),
                   ),
@@ -306,24 +343,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
             child: _isLoading
                 ? Center(child: CircularProgressIndicator(color: themeColor))
                 : _filteredChatList.isEmpty
-                    ? SingleChildScrollView(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 30, bottom: 100),
-                          child: _buildEmptyState(),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        color: themeColor,
-                        onRefresh: () async {
-                          _network.sendPacket("GET_USERS", {});
-                          await _loadChatList();
-                        },
-                        child: ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 120),
-                          itemCount: _filteredChatList.length,
-                          itemBuilder: (ctx, index) => _buildChatTile(_filteredChatList[index]),
-                        ),
-                      ),
+                ? SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 30, bottom: 100),
+                      child: _buildEmptyState(),
+                    ),
+                  )
+                : RefreshIndicator(
+                    color: themeColor,
+                    onRefresh: () async {
+                      _network.sendPacket("GET_USERS", {});
+                      await _loadChatList();
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 120),
+                      itemCount: _filteredChatList.length,
+                      itemBuilder: (ctx, index) =>
+                          _buildChatTile(_filteredChatList[index]),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -363,7 +401,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           VeilButton(
             isDark: widget.isDark,
             label: "FIND CONTACTS",
-            gradient: [themeColor, themeColor.withOpacity(0.7)],
+            gradient: [themeColor, themeColor.withValues(alpha: 0.7)],
             onTap: () async {
               _network.sendPacket("GET_USERS", {});
               try {
@@ -372,16 +410,22 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 final rawU = data['users'] as Map? ?? {};
                 final users = <String, String>{};
                 rawU.forEach((k, v) {
-                  if (v is String) users[k.toString()] = v;
-                  else if (v is Map) users[k.toString()] = v['status']?.toString() ?? 'Offline';
+                  if (v is String)
+                    users[k.toString()] = v;
+                  else if (v is Map)
+                    users[k.toString()] = v['status']?.toString() ?? 'Offline';
                 });
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+                    backgroundColor: widget.isDark
+                        ? const Color(0xFF0F172A)
+                        : Colors.white,
                     title: Text(
                       'All Contacts',
-                      style: TextStyle(color: widget.isDark ? Colors.white : Colors.black),
+                      style: TextStyle(
+                        color: widget.isDark ? Colors.white : Colors.black,
+                      ),
                     ),
                     content: SizedBox(
                       width: double.maxFinite,
@@ -390,23 +434,32 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         children: users.entries.map((e) {
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: themeColor.withOpacity(0.2),
+                              backgroundColor: themeColor.withValues(
+                                alpha: 0.2,
+                              ),
                               child: Text(
                                 e.key[0].toUpperCase(),
-                                style: TextStyle(color: themeColor, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  color: themeColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             title: Text(
                               e.key,
                               style: TextStyle(
-                                color: widget.isDark ? Colors.white : Colors.black,
+                                color: widget.isDark
+                                    ? Colors.white
+                                    : Colors.black,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             subtitle: Text(
                               e.value,
                               style: TextStyle(
-                                color: e.value == "Online" ? Colors.green : Colors.grey,
+                                color: e.value == "Online"
+                                    ? Colors.green
+                                    : Colors.grey,
                               ),
                             ),
                             onTap: () {
@@ -459,9 +512,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
     if (lastTime > 0) {
       final date = DateTime.fromMillisecondsSinceEpoch(lastTime);
       final now = DateTime.now();
-      if (date.day == now.day && date.month == now.month && date.year == now.year) {
+      if (date.day == now.day &&
+          date.month == now.month &&
+          date.year == now.year) {
         timeStr = DateFormat('HH:mm').format(date);
-      } else if (date.year == now.year && date.month == now.month && now.day - date.day == 1) {
+      } else if (date.year == now.year &&
+          date.month == now.month &&
+          now.day - date.day == 1) {
         timeStr = 'Yesterday';
       } else {
         timeStr = DateFormat('dd/MM').format(date);
@@ -469,25 +526,47 @@ class _ChatListScreenState extends State<ChatListScreen> {
     }
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         HapticFeedback.mediumImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChatLockScreen(
-              contactName: contact,
-              isDark: widget.isDark,
-              child: ChatDetailScreen(
+        final isLocked = await ChatLockScreen.isLocked(
+          contact,
+          widget.username,
+        );
+        if (!context.mounted) return;
+        if (isLocked) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatLockScreen(
+                contactName: contact,
+                myUsername: widget.username,
+                isDark: widget.isDark,
+                child: ChatDetailScreen(
+                  contactName: contact,
+                  isDark: widget.isDark,
+                  sharedKey: widget.sharedKey,
+                  myUsername: widget.username,
+                ),
+              ),
+            ),
+          ).then((_) {
+            _loadChatList();
+          });
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatDetailScreen(
                 contactName: contact,
                 isDark: widget.isDark,
                 sharedKey: widget.sharedKey,
                 myUsername: widget.username,
               ),
             ),
-          ),
-        ).then((_) {
-          _loadChatList();
-        });
+          ).then((_) {
+            _loadChatList();
+          });
+        }
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
@@ -501,21 +580,22 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   tag: "avatar-$contact",
                   child: () {
                     final ap = chat['avatarPath'] as String?;
-                    final hasImg = ap != null && ap.isNotEmpty &&
-                        File(ap).existsSync();
+                    final hasImg =
+                        ap != null && ap.isNotEmpty && File(ap).existsSync();
                     return CircleAvatar(
                       radius: 28,
-                      backgroundColor: themeColor.withOpacity(0.1),
+                      backgroundColor: themeColor.withValues(alpha: 0.1),
                       backgroundImage: hasImg
-                          ? FileImage(File(ap!)) as ImageProvider
+                          ? FileImage(File(ap)) as ImageProvider
                           : null,
                       child: !hasImg
                           ? Text(
                               contact[0].toUpperCase(),
                               style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: themeColor),
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: themeColor,
+                              ),
                             )
                           : null,
                     );
@@ -531,7 +611,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF00FF88),
                         shape: BoxShape.circle,
-                        border: Border.all(color: widget.isDark ? Colors.black : Colors.white, width: 2),
+                        border: Border.all(
+                          color: widget.isDark ? Colors.black : Colors.white,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
@@ -558,7 +641,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       if (isMe)
                         Padding(
                           padding: const EdgeInsets.only(right: 4),
-                          child: _buildListTick(chat['status'] as String? ?? 'sent'),
+                          child: _buildListTick(
+                            chat['status'] as String? ?? 'sent',
+                          ),
                         ),
                       Expanded(
                         child: Text(
@@ -591,11 +676,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 const SizedBox(height: 6),
                 if (unread > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: themeColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Text(
                       unread > 99 ? '99+' : '$unread',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
               ],
